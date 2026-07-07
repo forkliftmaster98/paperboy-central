@@ -135,48 +135,69 @@ function analyzeFinances(data, month) {
   return tips;
 }
 
+// ── Design tokens ─────────────────────────────────────────
+const C = {
+  bg: "#0A0A0A",
+  surface: "#141414",
+  surfaceHigh: "#1E1E1E",
+  border: "#2A2A2A",
+  green: "#22C55E",
+  greenDim: "#14532D",
+  blue: "#3B82F6",
+  blueDim: "#1E3A8A",
+  red: "#EF4444",
+  redDim: "#7F1D1D",
+  amber: "#F59E0B",
+  text: "#F1F5F9",
+  textMid: "#94A3B8",
+  textDim: "#475569",
+};
+
 // ── Styles ────────────────────────────────────────────────
 const S = {
-  root: { fontFamily: "'Inter', -apple-system, sans-serif", background: "#111110", color: "#E8E4DB", minHeight: "100vh" },
-  wrap: { maxWidth: 960, margin: "0 auto", padding: "20px 14px 100px" },
-  hdr: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 6 },
-  h1: { fontSize: 20, fontWeight: 600, margin: 0, letterSpacing: "-0.02em" },
+  root: { fontFamily: "'Inter', -apple-system, sans-serif", background: C.bg, color: C.text, minHeight: "100vh" },
+  wrap: { maxWidth: 640, margin: "0 auto", padding: "0 0 80px" },
+  hdr: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 16px 0", marginBottom: 4 },
+  h1: { fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: "-0.03em", color: C.text },
   monthNav: { display: "flex", alignItems: "center", gap: 6 },
-  mBtn: { background: "none", border: "1px solid #333", color: "#999", borderRadius: 3, padding: "3px 9px", cursor: "pointer", fontSize: 13, fontFamily: "inherit" },
-  mLbl: { fontSize: 13, color: "#999", minWidth: 130, textAlign: "center", fontFamily: "monospace" },
-  tabs: { display: "flex", gap: 0, borderBottom: "1px solid #2A2A28", margin: "14px 0 20px", overflowX: "auto" },
-  tab: (a) => ({ padding: "9px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", background: "none", border: "none", borderBottom: a ? "2px solid #C9A227" : "2px solid transparent", color: a ? "#E8E4DB" : "#777", fontFamily: "inherit", whiteSpace: "nowrap" }),
-  card: { background: "#1A1A18", borderRadius: 4, padding: "16px 18px", marginBottom: 12, border: "1px solid #2A2A28" },
-  cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "#888", marginBottom: 10 },
+  mBtn: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 14, fontFamily: "inherit" },
+  mLbl: { fontSize: 13, color: C.textMid, minWidth: 110, textAlign: "center", fontFamily: "monospace" },
+  bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, background: C.surface, borderTop: "1px solid " + C.border, display: "flex", zIndex: 100 },
+  navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
+  navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
+  page: { padding: "12px 16px 0" },
+  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border },
+  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border },
+  cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
-  inp: { background: "#111110", border: "1px solid #333", borderRadius: 3, padding: "7px 9px", color: "#E8E4DB", fontSize: 14, fontFamily: "inherit", flex: 1, minWidth: 80 },
-  inpSm: { background: "#111110", border: "1px solid #333", borderRadius: 3, padding: "7px 9px", color: "#E8E4DB", fontSize: 14, fontFamily: "inherit", width: 105 },
-  sel: { background: "#111110", border: "1px solid #333", borderRadius: 3, padding: "7px 9px", color: "#E8E4DB", fontSize: 14, fontFamily: "inherit", minWidth: 110 },
-  btn: { background: "#C9A227", color: "#111", border: "none", borderRadius: 3, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
-  btnD: { background: "#9C4A3C", color: "#fff", border: "none", borderRadius: 3, padding: "3px 8px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
-  btnG: { background: "none", border: "1px solid #333", color: "#999", borderRadius: 3, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" },
-  btnTeal: { background: "#3E7C74", color: "#fff", border: "none", borderRadius: 3, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
+  inpSm: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", width: 105 },
+  sel: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 110 },
+  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
+  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" },
+  btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
   tbl: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-  th: { textAlign: "left", padding: "7px 8px", borderBottom: "1px solid #2A2A28", color: "#888", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" },
-  td: { padding: "7px 8px", borderBottom: "1px solid #1F1F1D", color: "#CCC" },
-  statV: { fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" },
-  statL: { fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 3 },
-  bar: { height: 6, borderRadius: 3, background: "#2A2A28", overflow: "hidden", marginTop: 5 },
-  barF: (p, c) => ({ height: "100%", borderRadius: 3, background: c, width: `${Math.min(p, 100)}%`, transition: "width 0.3s" }),
-  overB: { display: "inline-block", background: "#9C4A3C", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 5px", borderRadius: 2, marginLeft: 5 },
-  underB: { display: "inline-block", background: "#3E7C74", color: "#fff", fontSize: 10, fontWeight: 600, padding: "1px 5px", borderRadius: 2, marginLeft: 5 },
-  empty: { color: "#666", fontSize: 13, padding: "16px 0", textAlign: "center" },
-  delBtn: { background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: 13, padding: "1px 5px" },
-  pbFloat: { position: "fixed", bottom: 20, right: 20, zIndex: 1000 },
-  pbBtn: { width: 56, height: 56, borderRadius: "50%", background: "#1A6B3C", border: "3px solid #C9A227", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.5)", transition: "transform 0.15s" },
-  pbPanel: { position: "fixed", bottom: 86, right: 16, width: 340, maxWidth: "calc(100vw - 32px)", maxHeight: "70vh", background: "#1A1A18", border: "1px solid #2A2A28", borderRadius: 8, boxShadow: "0 8px 40px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column", zIndex: 1001 },
-  pbHdr: { padding: "12px 14px", borderBottom: "1px solid #2A2A28", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  pbBody: { flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 },
-  pbInput: { display: "flex", gap: 6, padding: "10px 14px", borderTop: "1px solid #2A2A28" },
-  pbMsg: (isUser) => ({ background: isUser ? "#2A2A28" : "#1F2E1F", padding: "8px 12px", borderRadius: 6, fontSize: 13, lineHeight: 1.55, color: "#DDD", alignSelf: isUser ? "flex-end" : "flex-start", maxWidth: "90%", whiteSpace: "pre-wrap", wordBreak: "break-word" }),
-  pbQuick: { display: "flex", flexWrap: "wrap", gap: 5, padding: "6px 14px 0" },
-  pbQBtn: { background: "#222", border: "1px solid #333", color: "#AAA", borderRadius: 12, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
-  tipCard: (type) => ({ padding: "10px 14px", borderRadius: 4, fontSize: 13, lineHeight: 1.5, borderLeft: `3px solid ${type === "good" ? "#5B8A72" : type === "warning" || type === "over" ? "#C9A227" : type === "danger" ? "#9C4A3C" : "#3E7C74"}`, background: "#1F1F1D", marginBottom: 8 }),
+  th: { textAlign: "left", padding: "8px 12px", borderBottom: "1px solid " + C.border, color: C.textDim, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" },
+  td: { padding: "10px 12px", borderBottom: "1px solid " + C.border, color: C.textMid },
+  statV: { fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 },
+  statL: { fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 4 },
+  bar: { height: 6, borderRadius: 99, background: C.surfaceHigh, overflow: "hidden", marginTop: 6 },
+  barF: (p, c) => ({ height: "100%", borderRadius: 99, background: c, width: String(Math.min(p, 100)) + "%", transition: "width 0.4s ease" }),
+  overB: { display: "inline-block", background: C.redDim, color: C.red, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
+  underB: { display: "inline-block", background: C.greenDim, color: C.green, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
+  empty: { color: C.textDim, fontSize: 13, padding: "20px 0", textAlign: "center" },
+  delBtn: { background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 15, padding: "2px 6px" },
+  pbFloat: { position: "fixed", bottom: 72, right: 16, zIndex: 200 },
+  pbBtn: { width: 52, height: 52, borderRadius: "50%", background: C.greenDim, border: "2px solid " + C.green, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 24px rgba(34,197,94,0.25)", transition: "transform 0.15s" },
+  pbPanel: { position: "fixed", bottom: 134, right: 12, width: 320, maxWidth: "calc(100vw - 24px)", maxHeight: "65vh", background: C.surface, border: "1px solid " + C.border, borderRadius: 16, boxShadow: "0 8px 40px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", zIndex: 201 },
+  pbHdr: { padding: "12px 14px", borderBottom: "1px solid " + C.border, display: "flex", justifyContent: "space-between", alignItems: "center" },
+  pbBody: { flex: 1, overflowY: "auto", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 },
+  pbInput: { display: "flex", gap: 6, padding: "10px 12px", borderTop: "1px solid " + C.border },
+  pbMsg: (isUser) => ({ background: isUser ? C.surfaceHigh : C.greenDim + "88", padding: "9px 12px", borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px", fontSize: 13, lineHeight: 1.5, color: C.text, alignSelf: isUser ? "flex-end" : "flex-start", maxWidth: "88%", whiteSpace: "pre-wrap", wordBreak: "break-word" }),
+  pbQuick: { display: "flex", flexWrap: "wrap", gap: 5, padding: "6px 12px 2px" },
+  pbQBtn: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 16, padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
+  tipCard: (type) => ({ padding: "10px 14px", borderRadius: 8, fontSize: 13, lineHeight: 1.5, background: type === "good" ? C.greenDim + "44" : type === "warning" || type === "over" ? "#78350F44" : type === "danger" ? C.redDim + "44" : C.blueDim + "44", borderLeft: "3px solid " + (type === "good" ? C.green : type === "warning" || type === "over" ? C.amber : type === "danger" ? C.red : C.blue), marginBottom: 8, color: C.text }),
 };
 
 // ── PaperBoy SVG ──────────────────────────────────────────
@@ -288,33 +309,51 @@ export default function BudgetManager() {
   const addRecurring = (r) => save({ ...data, recurring: [...(data.recurring || []), { ...r, id: uid() }] });
   const delRecurring = (id) => save({ ...data, recurring: (data.recurring || []).filter(r => r.id !== id) });
 
+  // Nav icons as SVG inline
+  const NAV = [
+    { label: "Home", icon: (a) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={a ? C.green : C.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
+    { label: "Txns", icon: (a) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={a ? C.green : C.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+    { label: "Budget", icon: (a) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={a ? C.green : C.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
+    { label: "Goals", icon: (a) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={a ? C.green : C.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> },
+    { label: "Trends", icon: (a) => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={a ? C.green : C.textDim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
+  ];
+
   return (
     <div style={S.root}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={S.wrap}>
         <div style={S.hdr}>
-          <h1 style={S.h1}>Budget Manager</h1>
+          <h1 style={S.h1}>PaperBoy Central</h1>
           <div style={S.monthNav}>
-            <button style={S.mBtn} onClick={() => shiftMonth(-1)}>&larr;</button>
+            <button style={S.mBtn} onClick={() => shiftMonth(-1)}>&#8249;</button>
             <span style={S.mLbl}>{monthLabelLong(month)}</span>
-            <button style={S.mBtn} onClick={() => shiftMonth(1)}>&rarr;</button>
+            <button style={S.mBtn} onClick={() => shiftMonth(1)}>&#8250;</button>
           </div>
         </div>
-        <div style={S.tabs}>
-          {TABS.map((t, i) => <button key={t} style={S.tab(i === tab)} onClick={() => setTab(i)}>{t}</button>)}
-        </div>
 
-        {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-        {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} />}
-        {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
-        {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} />}
-        {tab === 4 && <TrendsTab data={data} month={month} />}
+        <div style={S.page}>
+          {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} />}
+          {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
+          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} />}
+          {tab === 4 && <TrendsTab data={data} month={month} />}
+        </div>
       </div>
+
+      {/* Bottom nav */}
+      <nav style={S.bottomNav}>
+        {NAV.map((n, i) => (
+          <button key={n.label} style={S.navItem(i === tab)} onClick={() => setTab(i)}>
+            {n.icon(i === tab)}
+            <span style={S.navLabel(i === tab)}>{n.label}</span>
+          </button>
+        ))}
+      </nav>
 
       {/* PaperBoy */}
       <div style={S.pbFloat}>
         <div style={S.pbBtn} onClick={() => setPbOpen(!pbOpen)} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
-          <PaperBoySVG size={36} />
+          <PaperBoySVG size={32} />
         </div>
       </div>
       {pbOpen && <PaperBoyPanel data={data} month={month} catSpend={catSpend} totalSpent={totalSpent} totalIncome={totalIncome} onClose={() => setPbOpen(false)} save={save} />}
@@ -484,20 +523,20 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-        <div style={S.card}><div style={{ ...S.statV, color: "#5B8A72" }}>{fmt(totalIncome)}</div><div style={S.statL}>Monthly Income</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? "#9C4A3C" : "#E8E4DB" }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? "#9C4A3C" : "#5B8A72" }}>{fmt(remaining)}</div><div style={S.statL}>Remaining</div></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
+        <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
       </div>
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#AAA" }}>
             <span style={{ ...S.cTitle, marginBottom: 0 }}>Budget Health</span>
-            <span style={{ color: (totalBudgeted - totalSpent) < 0 ? "#9C4A3C" : "#5B8A72" }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
+            <span style={{ color: (totalBudgeted - totalSpent) < 0 ? C.red : C.green }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
           </div>
-          <div style={S.bar}><div style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? "#9C4A3C" : "#C9A227")} /></div>
-          {overCats.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: "#9C4A3C" }}>Over budget: {overCats.map(c => `${c.name} (+${fmt((catSpend[c.id] || 0) - c.budget)})`).join(", ")}</div>}
+          <div style={S.bar}><div style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? C.red : C.green)} /></div>
+          {overCats.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>Over budget: {overCats.map(c => `${c.name} (+${fmt((catSpend[c.id] || 0) - c.budget)})`).join(", ")}</div>}
         </div>
       )}
 
@@ -800,7 +839,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         <td style={S.td}>{c.name}</td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
-        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? "#9C4A3C" : "#5B8A72")} /></div>}</td>
+        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? C.red : C.green)} /></div>}</td>
         <td style={S.td}><button style={S.delBtn} onClick={() => delCat(c.id)}>x</button></td>
       </tr>
     );
@@ -900,7 +939,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Savings Goals</div>
-          <span style={{ fontSize: 12, color: "#5B8A72", fontFamily: "monospace" }}>Total saved: {fmt(totalSaved)}</span>
+          <span style={{ fontSize: 12, color: C.green, fontFamily: "monospace" }}>Total saved: {fmt(totalSaved)}</span>
         </div>
         {data.savings.length === 0 ? <div style={S.empty}>No savings goals.</div> : data.savings.map(g => {
           const p = pct(g.saved, g.target);
@@ -919,7 +958,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
               </div>
               <div style={S.bar}><div style={S.barF(p, "#5B8A72")} /></div>
               {needed !== null && (
-                <div style={{ fontSize: 11, color: onPace ? "#5B8A72" : "#C9A227", marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: onPace ? C.green : C.amber, marginTop: 4 }}>
                   {fmt(needed)}/mo needed to hit deadline {!onPace && "-- may need to adjust"}
                 </div>
               )}
@@ -948,7 +987,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Debt Payoff</div>
-          <span style={{ fontSize: 12, color: totalDebt > 0 ? "#9C4A3C" : "#5B8A72", fontFamily: "monospace" }}>Total: {fmt(totalDebt)}</span>
+          <span style={{ fontSize: 12, color: totalDebt > 0 ? C.red : C.green, fontFamily: "monospace" }}>Total: {fmt(totalDebt)}</span>
         </div>
         {data.debts.length === 0 ? <div style={S.empty}>No debts tracked.</div> : (
           <div>
@@ -962,11 +1001,11 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
                   <tr key={d.id}>
                     <td style={S.td}>{d.name}</td>
                     <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 85, padding: "3px 6px", fontSize: 12 }} value={d.balance} onChange={e => updDbt(d.id, { balance: parseFloat(e.target.value) || 0 })} /></td>
-                    <td style={{ ...S.td, color: d.rate > 15 ? "#C9A227" : "#888" }}>{d.rate}%</td>
+                    <td style={{ ...S.td, color: d.rate > 15 ? C.amber : C.textDim }}>{d.rate}%</td>
                     <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{fmt(d.minPayment)}{d.extraPayment > 0 ? ` +${fmt(d.extraPayment)}` : ""}</td>
                     <td style={{ ...S.td, fontSize: 11 }}>
-                      <span style={{ color: po.months === Infinity ? "#9C4A3C" : "#C9A227" }}>{po.text}</span>
-                      {simPo && <div style={{ color: "#5B8A72", fontSize: 10, marginTop: 2 }}>+{fmt(simAmt)}/mo: {simPo.text}</div>}
+                      <span style={{ color: po.months === Infinity ? C.red : C.blue }}>{po.text}</span>
+                      {simPo && <div style={{ color: C.green, fontSize: 10, marginTop: 2 }}>+{fmt(simAmt)}/mo: {simPo.text}</div>}
                     </td>
                     <td style={S.td}><button style={{ ...S.btnG, padding: "2px 8px", fontSize: 11 }} onClick={() => setSimId(simId === d.id ? null : d.id)}>sim</button></td>
                     <td style={S.td}><button style={S.delBtn} onClick={() => delDbt(d.id)}>x</button></td>
@@ -1077,7 +1116,7 @@ function TrendsTab({ data, month }) {
             <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareA)}</div>
           </div>
           <div style={{ textAlign: "center" }}>
-            <div style={{ ...S.statV, color: spendB.total > spendA.total ? "#9C4A3C" : "#5B8A72", fontSize: 20 }}>{fmt(spendB.total)}</div>
+            <div style={{ ...S.statV, color: spendB.total > spendA.total ? C.red : C.green, fontSize: 20 }}>{fmt(spendB.total)}</div>
             <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
           </div>
         </div>
