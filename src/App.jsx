@@ -246,7 +246,7 @@ export default function BudgetManager() {
       } catch { setData(getDefaultState()); }
       setLoading(false);
     })();
-  }, []);
+  }, [generateRecurring]);
 
   const shiftMonth = (d) => setMonth(shiftMonthStr(month, d));
 
@@ -277,7 +277,6 @@ export default function BudgetManager() {
   const delSav = (id) => save({ ...data, savings: data.savings.filter(g => g.id !== id) });
   // Savings deposit also logs a transaction
   const depositSav = (goal, amount) => {
-    const cat = data.categories.find(c => c.id === "misc") || data.categories[0];
     const tx = { id: uid(), date: todayStr(), amount, categoryId: "savings_deposit", categoryName: "Savings Deposit", description: `Deposit: ${goal.name}`, isSavingsDeposit: true };
     save({ ...data, savings: data.savings.map(g => g.id === goal.id ? { ...g, saved: g.saved + amount } : g), transactions: [...data.transactions, tx] });
   };
@@ -398,7 +397,7 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
 
     greeting += "\n\nAsk me anything.";
     setMessages([{ role: "pb", text: greeting }]);
-  }, []);
+  }, [data, month, catSpend, totalSpent, totalIncome, isNewUser, hasNoIncome, hasNoBudgets]);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -564,7 +563,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [csvData, setCsvData] = useState(null);
   const [csvMap, setCsvMap] = useState({ date: "", amount: "", desc: "" });
   const [csvRows, setCsvRows] = useState([]);
-  const [csvCat, setCsvCat] = useState(data.categories[0]?.id || "");
+  const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [recName, setRecName] = useState("");
@@ -578,7 +577,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       const matched = autoCategory(desc, data.rules || [], data.categories);
       if (matched) setCatId(matched.id);
     }
-  }, [desc]);
+  }, [desc, data.rules, data.categories]);
 
   const handleAdd = () => {
     const a = parseFloat(amount);
@@ -616,7 +615,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
     if (!csvData || !csvMap.date || !csvMap.amount) return;
     const txs = [];
     csvRows.forEach(row => {
-      const rawAmt = String(row[csvMap.amount] || "").replace(/[^0-9.\-]/g, "");
+      const rawAmt = String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "");
       const amt = Math.abs(parseFloat(rawAmt));
       if (!amt || amt <= 0) return;
       const parsed = new Date(row[csvMap.date] || "");
