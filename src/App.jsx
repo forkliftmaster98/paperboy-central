@@ -791,9 +791,6 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         const descCol = colIdx(["desc", "memo", "note", "narr", "detail", "merchant", "payee"]) || cols[2];
 
         const map = { date: dateCol, amount: amtCol, desc: descCol };
-        const dateIdx = cols.indexOf(dateCol);
-        const amtIdx = cols.indexOf(amtCol);
-        const descIdx = cols.indexOf(descCol);
 
         // Parse rows into objects, skip summary/balance header lines
         const allParsed = dataRows
