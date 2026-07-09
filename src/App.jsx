@@ -655,7 +655,6 @@ function BillCalendar({ recurring, month }) {
   const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
   const isPast = (d) => todayDay !== null && d < todayDay;
   const isToday = (d) => d === todayDay;
-  const hasBill = (d) => !!byDay[d];
 
   return (
     <div>
