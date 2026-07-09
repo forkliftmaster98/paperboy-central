@@ -646,6 +646,23 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const netWorth = totalSaved - totalDebt;
   const earnedCount = (data.achievements || []).length;
 
+  // Net cash flow: income − expenses − savings deposits this month
+  const savingsDeposits = monthTx.filter(t => t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  const netCashFlow = totalIncome - totalSpent - savingsDeposits;
+
+  // Spending forecast — only meaningful for the current month
+  const isCurrentMonth = month === curMonth();
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const forecastSpend = isCurrentMonth && dayOfMonth > 0 ? Math.round((totalSpent / dayOfMonth) * daysInMonth) : null;
+
+  // Bill due alerts
+  const billAlerts = (data.recurring || []).filter(r => r.dueDay).map(r => {
+    const daysUntil = r.dueDay - dayOfMonth;
+    return { ...r, daysUntil };
+  }).filter(r => isCurrentMonth && r.daysUntil >= 0 && r.daysUntil <= 5).sort((a, b) => a.daysUntil - b.daysUntil);
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
@@ -654,18 +671,51 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 22 }}>{fmt(netWorth)}</div>
+          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(Math.abs(netCashFlow))}</div>
+          <div style={S.statL}>Net Flow</div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{netCashFlow >= 0 ? "surplus" : "deficit"} after bills{savingsDeposits > 0 ? " & savings" : ""}</div>
+        </div>
+        <div style={S.card}>
+          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(netWorth)}</div>
           <div style={S.statL}>Net Worth</div>
           {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: C.amber, fontSize: 22 }}>{earnedCount}<span style={{ fontSize: 13, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
+          <div style={{ ...S.statV, color: C.amber, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
           <div style={S.statL}>Achievements</div>
-          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab for details</div>}
+          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab</div>}
         </div>
       </div>
+
+      {(forecastSpend !== null || billAlerts.length > 0) && (
+        <div style={S.card}>
+          {forecastSpend !== null && (
+            <div style={{ marginBottom: billAlerts.length > 0 ? 10 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={S.cTitle}>Spending Forecast</span>
+                <span style={{ fontSize: 12, color: forecastSpend > totalBudgeted && totalBudgeted > 0 ? C.red : C.textMid, fontFamily: "monospace" }}>on pace for {fmt(forecastSpend)} this month</span>
+              </div>
+              <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>Day {dayOfMonth} of {daysInMonth} · {fmt(totalSpent)} spent so far</div>
+            </div>
+          )}
+          {billAlerts.length > 0 && (
+            <div>
+              <div style={{ ...S.cTitle, marginBottom: 6 }}>Bills Due Soon</div>
+              {billAlerts.map(r => (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid " + C.border }}>
+                  <span style={{ fontSize: 13 }}>{r.name}</span>
+                  <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 13 }}>{fmt(r.amount)}</span>
+                    <span style={{ fontSize: 11, color: r.daysUntil === 0 ? C.red : r.daysUntil <= 2 ? C.amber : C.textMid }}>{r.daysUntil === 0 ? "due today" : `due in ${r.daysUntil}d`}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
@@ -747,6 +797,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [filterCat, setFilterCat] = useState("all");
   const [recName, setRecName] = useState("");
   const [recAmt, setRecAmt] = useState("");
+  const [recDueDay, setRecDueDay] = useState("");
   const [recCat, setRecCat] = useState(data.categories[0]?.id || "");
   const fileRef = useRef(null);
 
@@ -878,16 +929,21 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
     const a = parseFloat(recAmt);
     if (!recName || !a || a <= 0) return;
     const cat = data.categories.find(c => c.id === recCat);
-    addRecurring({ name: recName, amount: a, categoryId: recCat, categoryName: cat?.name || recCat });
-    setRecName(""); setRecAmt("");
+    const due = parseInt(recDueDay);
+    addRecurring({ name: recName, amount: a, categoryId: recCat, categoryName: cat?.name || recCat, ...(due > 0 && due <= 31 ? { dueDay: due } : {}) });
+    setRecName(""); setRecAmt(""); setRecDueDay("");
   };
 
-  // Filtered transactions
-  const filtered = useMemo(() => monthTx.filter(t => {
-    const matchSearch = !search || t.description.toLowerCase().includes(search.toLowerCase()) || (t.categoryName || "").toLowerCase().includes(search.toLowerCase());
-    const matchCat = filterCat === "all" || t.categoryId === filterCat;
-    return matchSearch && matchCat;
-  }), [monthTx, search, filterCat]);
+  const [searchAll, setSearchAll] = useState(false);
+  // Filtered transactions — when searching, optionally span all months
+  const filtered = useMemo(() => {
+    const pool = (searchAll && search) ? [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)) : monthTx;
+    return pool.filter(t => {
+      const matchSearch = !search || t.description.toLowerCase().includes(search.toLowerCase()) || (t.categoryName || "").toLowerCase().includes(search.toLowerCase());
+      const matchCat = filterCat === "all" || t.categoryId === filterCat;
+      return matchSearch && matchCat;
+    });
+  }, [monthTx, data.transactions, search, filterCat, searchAll]);
 
   return (
     <div>
@@ -914,18 +970,19 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month.</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
+              <input type="number" style={{ ...S.inpSm, width: 72 }} placeholder="Due day" value={recDueDay} onChange={e => setRecDueDay(e.target.value)} min="1" max="31" />
               <select style={S.sel} value={recCat} onChange={e => setRecCat(e.target.value)}>
                 {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRecurring}>Add</button>
             </div>
             {(data.recurring || []).length === 0 ? <div style={S.empty}>No recurring transactions set.</div> : (
-              <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
+              <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
+                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
             )}
           </div>
@@ -1029,6 +1086,11 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           <option value="all">All categories</option>
           {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        {search && (
+          <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Search all months">
+            {searchAll ? "All months" : "This month"}
+          </button>
+        )}
       </div>
 
       <div style={S.card}>
