@@ -391,7 +391,12 @@ export default function BudgetManager() {
   }, [data, monthTx]);
   const totalSpent = useMemo(() => Object.values(catSpend).reduce((s, v) => s + v, 0), [catSpend]);
   const totalBudgeted = useMemo(() => data ? data.categories.reduce((s, c) => s + c.budget, 0) : 0, [data]);
-  const totalIncome = useMemo(() => data ? getMonthlyIncome(data.incomes) : 0, [data]);
+  const totalIncome = useMemo(() => {
+    if (!data) return 0;
+    const manual = getMonthlyIncome(data.incomes);
+    const deposits = monthTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    return manual + deposits;
+  }, [data, monthTx]);
 
   if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#888" }}>Loading...</p></div>;
 
@@ -736,7 +741,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [csvMap, setCsvMap] = useState({ date: "", amount: "", desc: "" });
   const [csvRows, setCsvRows] = useState([]);
   const [csvDepositRows, setCsvDepositRows] = useState([]);
-  const [includeDeposits, setIncludeDeposits] = useState(true);
+  const [depositTypes, setDepositTypes] = useState({});
   const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -818,7 +823,15 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
         const depositRows = allParsed
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
-          .map(row => ({ ...row, _isDeposit: true }));
+          .map((row, i) => ({ ...row, _depositId: i }));
+
+        // Auto-detect payroll rows
+        const initTypes = {};
+        depositRows.forEach(row => {
+          const desc = String(row[descCol] || "").toLowerCase();
+          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep/.test(desc);
+          initTypes[row._depositId] = isPayroll ? "income" : "skip";
+        });
 
         if (expenseRows.length > 0 || depositRows.length > 0) {
           const syntheticResults = { meta: { fields: cols }, data: expenseRows };
@@ -826,6 +839,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           setCsvMap(map);
           setCsvRows(expenseRows);
           setCsvDepositRows(depositRows);
+          setDepositTypes(initTypes);
         }
       }
     });
@@ -848,15 +862,14 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
-    if (includeDeposits) {
-      csvDepositRows.forEach(row => {
-        const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
-        if (!amt || amt <= 0) return;
-        txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: "Income / Deposit", description: row[csvMap.desc] || "Deposit", type: "income" });
-      });
-    }
+    csvDepositRows.forEach(row => {
+      if (depositTypes[row._depositId] !== "income") return;
+      const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
+      if (!amt || amt <= 0) return;
+      txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: "Income / Deposit", description: row[csvMap.desc] || "Deposit", type: "income" });
+    });
     if (txs.length > 0) addTxBatch(txs, true);
-    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setCsvMode(false);
+    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
   };
 
   const handleAddRecurring = () => {
@@ -955,15 +968,29 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
                   {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
-                  {csvDepositRows.length > 0 && (
-                    <span style={{ marginLeft: 10 }}>
-                      <label style={{ cursor: "pointer", color: includeDeposits ? "#5B8A72" : "#888" }}>
-                        <input type="checkbox" checked={includeDeposits} onChange={e => setIncludeDeposits(e.target.checked)} style={{ marginRight: 4 }} />
-                        Include {csvDepositRows.length} deposits as income
-                      </label>
-                    </span>
-                  )}
                 </div>
+                {csvDepositRows.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 6 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
+                    <div style={{ overflowX: "auto", maxHeight: 160, overflowY: "auto" }}>
+                      <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
+                        {csvDepositRows.map(row => (
+                          <tr key={row._depositId}>
+                            <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                            <td style={S.td}>{row[csvMap.desc]}</td>
+                            <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                            <td style={S.td}>
+                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "skip"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
+                                <option value="income">Income</option>
+                                <option value="skip">Skip</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody></table>
+                    </div>
+                  </div>
+                )}
                 <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
@@ -983,8 +1010,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                   {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
-                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + (includeDeposits ? csvDepositRows.length : 0)} Transactions</button>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); }}>Cancel</button>
+                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => depositTypes[r._depositId] === "income").length} Transactions</button>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -1289,17 +1316,18 @@ function TrendsTab({ data, month }) {
   const [compareB, setCompareB] = useState(month);
 
   const getMonthSpend = useCallback((m) => {
-    const txs = data.transactions.filter(t => monthKey(t.date) === m);
+    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income");
     const totals = {};
     data.categories.forEach(c => { totals[c.id] = 0; });
     txs.forEach(t => { totals[t.categoryId] = (totals[t.categoryId] || 0) + t.amount; });
-    return { totals, total: txs.reduce((s, t) => s + t.amount, 0) };
+    const depositIncome = data.transactions.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+    return { totals, total: txs.reduce((s, t) => s + t.amount, 0), depositIncome };
   }, [data]);
 
   const trendData = useMemo(() => {
     return months.map(m => {
-      const { totals, total } = getMonthSpend(m);
-      const row = { month: monthLabel(m), total };
+      const { totals, total, depositIncome } = getMonthSpend(m);
+      const row = { month: monthLabel(m), total, depositIncome };
       data.categories.forEach(c => { row[c.name] = totals[c.id] || 0; });
       return row;
     });
@@ -1332,7 +1360,7 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Savings Rate — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={trendData.map(d => {
-            const income = getMonthlyIncome(data.incomes);
+            const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
@@ -1341,7 +1369,7 @@ function TrendsTab({ data, month }) {
             <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
-                const income = getMonthlyIncome(data.incomes);
+                const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
                 const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
                 return <Cell key={i} fill={rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red} />;
               })}
