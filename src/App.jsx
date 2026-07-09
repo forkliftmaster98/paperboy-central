@@ -24,11 +24,22 @@ const DEFAULT_CATEGORIES = [
 const DEFAULT_RULES = [
   { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
-  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple,youtube", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco,subway,wendy,restaurant,cafe,diner", categoryId: "dining" },
-  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy", categoryId: "shopping" },
+  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,steamgames,doordash,grubhub", categoryId: "subscriptions" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya", categoryId: "dining" },
+  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth", categoryId: "groceries" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe", categoryId: "shopping" },
+  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur", categoryId: "insurance" },
+  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness", categoryId: "leisure" },
+  { id: "r10", keywords: "capital one,venmo,ally,car payment,loan payment,mobile pmt", categoryId: "misc" },
+  { id: "r11", keywords: "grape ape,vape,smoke,tobacco,cigarette", categoryId: "personal" },
+  { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket", categoryId: "leisure" },
+  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "misc" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube", categoryId: "misc" },
+  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms", categoryId: "groceries" },
+  { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
+  { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
 ];
 
 const ACHIEVEMENTS = [
@@ -104,7 +115,7 @@ function autoCategory(desc, rules, categories) {
 function analyzeFinances(data, month) {
   const tips = [];
   const income = getMonthlyIncome(data.incomes);
-  const txs = data.transactions.filter(t => monthKey(t.date) === month);
+  const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income");
   const spent = txs.reduce((s, t) => s + t.amount, 0);
   const cSpend = {};
   data.categories.forEach(c => { cSpend[c.id] = 0; });
@@ -189,7 +200,7 @@ function checkAchievements(data) {
   const totalBudget = (data.categories || []).reduce((s, c) => s + c.budget, 0);
   let streak = 0;
   months.forEach(m => {
-    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m);
+    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m && t.type !== "income");
     const spent = txs.reduce((s, t) => s + t.amount, 0);
     if (income > 0) {
       const savedPct = (income - spent) / income;
@@ -375,7 +386,7 @@ export default function BudgetManager() {
   const catSpend = useMemo(() => {
     if (!data) return {};
     const t = {}; data.categories.forEach(c => { t[c.id] = 0; });
-    monthTx.forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
+    monthTx.filter(tx => tx.type !== "income").forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
     return t;
   }, [data, monthTx]);
   const totalSpent = useMemo(() => Object.values(catSpend).reduce((s, v) => s + v, 0), [catSpend]);
@@ -724,6 +735,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [csvData, setCsvData] = useState(null);
   const [csvMap, setCsvMap] = useState({ date: "", amount: "", desc: "" });
   const [csvRows, setCsvRows] = useState([]);
+  const [csvDepositRows, setCsvDepositRows] = useState([]);
+  const [includeDeposits, setIncludeDeposits] = useState(true);
   const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -750,42 +763,103 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
   const handleCSV = (file) => {
     Papa.parse(file, {
-      header: true, skipEmptyLines: true,
+      header: false, skipEmptyLines: true,
       complete: (results) => {
-        if (results.data.length > 0) {
-          setCsvData(results);
-          const cols = results.meta.fields || [];
-          const dateCols = cols.filter(c => /date|time/i.test(c));
-          const amtCols = cols.filter(c => /amount|total|price|debit|credit|sum/i.test(c));
-          const descCols = cols.filter(c => /desc|memo|note|narr|detail|merchant|payee/i.test(c));
-          const map = { date: dateCols[0] || cols[0] || "", amount: amtCols[0] || cols[1] || "", desc: descCols[0] || cols[2] || "" };
-          setCsvMap(map);
-          // Build rows with auto-categorization
-          const rows = results.data.map(row => {
-            const d = row[map.desc] || "";
+        // Find the real header row (contains "Date" and "Amount" or "Description")
+        let headerIdx = -1;
+        for (let i = 0; i < Math.min(results.data.length, 10); i++) {
+          const row = results.data[i];
+          const joined = row.join(",").toLowerCase();
+          if (joined.includes("date") && (joined.includes("amount") || joined.includes("description"))) {
+            headerIdx = i;
+            break;
+          }
+        }
+        if (headerIdx === -1) headerIdx = 0; // fallback
+
+        const headers = results.data[headerIdx];
+        const dataRows = results.data.slice(headerIdx + 1);
+
+        const cols = headers.map(h => String(h).trim());
+        const colIdx = (patterns) => {
+          const idx = cols.findIndex(c => patterns.some(p => c.toLowerCase().includes(p)));
+          return idx >= 0 ? cols[idx] : null;
+        };
+
+        const dateCol = colIdx(["date", "time"]) || cols[0];
+        const amtCol = colIdx(["amount", "total", "debit", "credit", "sum"]) || cols[1];
+        const descCol = colIdx(["desc", "memo", "note", "narr", "detail", "merchant", "payee"]) || cols[2];
+
+        const map = { date: dateCol, amount: amtCol, desc: descCol };
+        const dateIdx = cols.indexOf(dateCol);
+        const amtIdx = cols.indexOf(amtCol);
+        const descIdx = cols.indexOf(descCol);
+
+        // Parse rows into objects, skip summary/balance header lines
+        const allParsed = dataRows
+          .map(row => {
+            const obj = {};
+            cols.forEach((h, i) => { obj[h] = row[i] || ""; });
+            return obj;
+          })
+          .filter(row => {
+            const rawAmt = String(row[amtCol] || "").replace(/[^0-9.-]/g, "");
+            const amt = parseFloat(rawAmt);
+            if (!rawAmt || isNaN(amt) || amt === 0) return false;
+            const desc = String(row[descCol] || "").toLowerCase();
+            if (desc.includes("beginning balance") || desc.includes("ending balance") || desc.includes("total credits") || desc.includes("total debits")) return false;
+            return true;
+          });
+
+        const expenseRows = allParsed
+          .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) < 0)
+          .map(row => {
+            const d = row[descCol] || "";
             const matched = autoCategory(d, data.rules || [], data.categories);
             return { ...row, _catId: matched?.id || csvCat, _matched: !!matched };
           });
-          setCsvRows(rows);
+
+        const depositRows = allParsed
+          .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
+          .map(row => ({ ...row, _isDeposit: true }));
+
+        if (expenseRows.length > 0 || depositRows.length > 0) {
+          const syntheticResults = { meta: { fields: cols }, data: expenseRows };
+          setCsvData(syntheticResults);
+          setCsvMap(map);
+          setCsvRows(expenseRows);
+          setCsvDepositRows(depositRows);
         }
       }
     });
+  };
+
+  const parseRowDate = (row) => {
+    const rawDate = String(row[csvMap.date] || "").trim();
+    const mmddyyyy = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mmddyyyy) return `${mmddyyyy[3]}-${mmddyyyy[1].padStart(2,"0")}-${mmddyyyy[2].padStart(2,"0")}`;
+    const parsed = new Date(rawDate);
+    return isNaN(parsed.getTime()) ? todayStr() : parsed.toISOString().slice(0, 10);
   };
 
   const importCSV = () => {
     if (!csvData || !csvMap.date || !csvMap.amount) return;
     const txs = [];
     csvRows.forEach(row => {
-      const rawAmt = String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "");
-      const amt = Math.abs(parseFloat(rawAmt));
+      const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
-      const parsed = new Date(row[csvMap.date] || "");
-      const dateStr = isNaN(parsed.getTime()) ? todayStr() : parsed.toISOString().slice(0, 10);
       const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
-      txs.push({ date: dateStr, amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+      txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
+    if (includeDeposits) {
+      csvDepositRows.forEach(row => {
+        const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
+        if (!amt || amt <= 0) return;
+        txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: "Income / Deposit", description: row[csvMap.desc] || "Deposit", type: "income" });
+      });
+    }
     if (txs.length > 0) addTxBatch(txs, true);
-    setCsvData(null); setCsvRows([]); setCsvMode(false);
+    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setCsvMode(false);
   };
 
   const handleAddRecurring = () => {
@@ -883,7 +957,15 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
-                  {csvRows.length} rows -- {csvRows.filter(r => r._matched).length} auto-categorized. Review and adjust below:
+                  {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
+                  {csvDepositRows.length > 0 && (
+                    <span style={{ marginLeft: 10 }}>
+                      <label style={{ cursor: "pointer", color: includeDeposits ? "#5B8A72" : "#888" }}>
+                        <input type="checkbox" checked={includeDeposits} onChange={e => setIncludeDeposits(e.target.checked)} style={{ marginRight: 4 }} />
+                        Include {csvDepositRows.length} deposits as income
+                      </label>
+                    </span>
+                  )}
                 </div>
                 <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
@@ -904,8 +986,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                   {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
-                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length} Transactions</button>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); }}>Cancel</button>
+                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + (includeDeposits ? csvDepositRows.length : 0)} Transactions</button>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -925,11 +1007,11 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
-          <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace" }}>Total: {fmt(filtered.reduce((s, t) => s + t.amount, 0))}</span>
+          <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}</td><td style={{ ...S.td, color: "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>deposit</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
           </tbody></table></div>
         )}
       </div>
