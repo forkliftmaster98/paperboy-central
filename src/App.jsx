@@ -234,7 +234,7 @@ const C = {
   amber: "#F59E0B",
   text: "#F1F5F9",
   textMid: "#94A3B8",
-  textDim: "#475569",
+  textDim: "#7A8FA6",
 };
 
 // ── Styles ────────────────────────────────────────────────
@@ -391,7 +391,12 @@ export default function BudgetManager() {
   }, [data, monthTx]);
   const totalSpent = useMemo(() => Object.values(catSpend).reduce((s, v) => s + v, 0), [catSpend]);
   const totalBudgeted = useMemo(() => data ? data.categories.reduce((s, c) => s + c.budget, 0) : 0, [data]);
-  const totalIncome = useMemo(() => data ? getMonthlyIncome(data.incomes) : 0, [data]);
+  const totalIncome = useMemo(() => {
+    if (!data) return 0;
+    const manual = getMonthlyIncome(data.incomes);
+    const deposits = monthTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    return manual + deposits;
+  }, [data, monthTx]);
 
   if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#888" }}>Loading...</p></div>;
 
@@ -625,6 +630,104 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
 }
 
 // ════════════════════════════════════════════════════════
+//  BILL CALENDAR
+// ════════════════════════════════════════════════════════
+function BillCalendar({ recurring, month }) {
+  const [y, mo] = month.split("-").map(Number);
+  const firstDow = new Date(y, mo - 1, 1).getDay(); // 0=Sun
+  const daysInMo = new Date(y, mo, 0).getDate();
+  const today = new Date();
+  const todayDay = today.getFullYear() === y && today.getMonth() + 1 === mo ? today.getDate() : null;
+
+  // Map dueDay → bills
+  const byDay = {};
+  (recurring || []).forEach(r => {
+    if (!r.dueDay) return;
+    const d = Math.min(r.dueDay, daysInMo);
+    if (!byDay[d]) byDay[d] = [];
+    byDay[d].push(r);
+  });
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMo; d++) cells.push(d);
+
+  const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const isPast = (d) => todayDay !== null && d < todayDay;
+  const isToday = (d) => d === todayDay;
+  const hasBill = (d) => !!byDay[d];
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 6 }}>
+        {DOW.map(d => <div key={d} style={{ textAlign: "center", fontSize: 9, color: C.textDim, fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const bills = byDay[d] || [];
+          const past = isPast(d);
+          const tdy = isToday(d);
+          return (
+            <div key={i} title={bills.map(r => `${r.name} — ${fmt(r.amount)}`).join("\n")} style={{
+              borderRadius: 6,
+              padding: "4px 2px",
+              minHeight: 38,
+              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#1A1A1A" : "#2A1A0E") : "transparent",
+              border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
+              opacity: past && !bills.length ? 0.35 : 1,
+              cursor: bills.length ? "default" : "default",
+              position: "relative",
+            }}>
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: tdy ? 700 : 400, color: tdy ? C.green : past ? C.textDim : C.textMid }}>
+                {d}
+              </div>
+              {bills.map((r, bi) => (
+                <div key={bi} style={{
+                  fontSize: 9,
+                  lineHeight: 1.2,
+                  color: past ? C.textDim : C.amber,
+                  textAlign: "center",
+                  marginTop: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  padding: "0 1px",
+                }}>
+                  {r.name.length > 7 ? r.name.slice(0, 6) + "…" : r.name}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {Object.keys(byDay).length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+          {Object.entries(byDay).sort((a, b) => Number(a[0]) - Number(b[0])).map(([day, bills]) =>
+            bills.map(r => {
+              const d = Number(day);
+              const past = isPast(d);
+              const tdy = isToday(d);
+              return (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, opacity: past ? 0.5 : 1 }}>
+                  <span style={{ color: C.text }}>{r.name}</span>
+                  <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontFamily: "monospace", color: C.textMid }}>{fmt(r.amount)}</span>
+                    <span style={{ fontSize: 10, color: tdy ? C.red : past ? C.textDim : C.amber, minWidth: 52, textAlign: "right" }}>
+                      {tdy ? "due today" : past ? `was ${d}th` : `due ${d}th`}
+                    </span>
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════════════
 function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIncome, month }) {
@@ -641,6 +744,19 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const netWorth = totalSaved - totalDebt;
   const earnedCount = (data.achievements || []).length;
 
+  // Net cash flow: income − expenses − savings deposits this month
+  const savingsDeposits = monthTx.filter(t => t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  const netCashFlow = totalIncome - totalSpent - savingsDeposits;
+
+  // Spending forecast — only meaningful for the current month
+  const isCurrentMonth = month === curMonth();
+  const today = new Date();
+  const dayOfMonth = today.getDate();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const forecastSpend = isCurrentMonth && dayOfMonth > 0 ? Math.round((totalSpent / dayOfMonth) * daysInMonth) : null;
+
+  const hasBillDates = (data.recurring || []).some(r => r.dueDay);
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
@@ -649,18 +765,40 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 22 }}>{fmt(netWorth)}</div>
+          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(Math.abs(netCashFlow))}</div>
+          <div style={S.statL}>Net Flow</div>
+          <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{netCashFlow >= 0 ? "surplus" : "deficit"} after bills{savingsDeposits > 0 ? " & savings" : ""}</div>
+        </div>
+        <div style={S.card}>
+          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(netWorth)}</div>
           <div style={S.statL}>Net Worth</div>
           {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: C.amber, fontSize: 22 }}>{earnedCount}<span style={{ fontSize: 13, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
+          <div style={{ ...S.statV, color: C.amber, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
           <div style={S.statL}>Achievements</div>
-          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab for details</div>}
+          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab</div>}
         </div>
       </div>
+
+      {forecastSpend !== null && (
+        <div style={S.card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={S.cTitle}>Spending Forecast</span>
+            <span style={{ fontSize: 12, color: forecastSpend > totalBudgeted && totalBudgeted > 0 ? C.red : C.textMid, fontFamily: "monospace" }}>on pace for {fmt(forecastSpend)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>Day {dayOfMonth} of {daysInMonth} · {fmt(totalSpent)} spent so far</div>
+        </div>
+      )}
+
+      {hasBillDates && (
+        <div style={S.card}>
+          <div style={S.cTitle}>Bill Calendar — {monthLabelLong(month)}</div>
+          <BillCalendar recurring={data.recurring} month={month} />
+        </div>
+      )}
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
@@ -736,12 +874,13 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [csvMap, setCsvMap] = useState({ date: "", amount: "", desc: "" });
   const [csvRows, setCsvRows] = useState([]);
   const [csvDepositRows, setCsvDepositRows] = useState([]);
-  const [includeDeposits, setIncludeDeposits] = useState(true);
+  const [depositTypes, setDepositTypes] = useState({});
   const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [recName, setRecName] = useState("");
   const [recAmt, setRecAmt] = useState("");
+  const [recDueDay, setRecDueDay] = useState("");
   const [recCat, setRecCat] = useState(data.categories[0]?.id || "");
   const fileRef = useRef(null);
 
@@ -818,7 +957,15 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
         const depositRows = allParsed
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
-          .map(row => ({ ...row, _isDeposit: true }));
+          .map((row, i) => ({ ...row, _depositId: i }));
+
+        // Auto-detect payroll rows
+        const initTypes = {};
+        depositRows.forEach(row => {
+          const desc = String(row[descCol] || "").toLowerCase();
+          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep/.test(desc);
+          initTypes[row._depositId] = isPayroll ? "income" : "extra";
+        });
 
         if (expenseRows.length > 0 || depositRows.length > 0) {
           const syntheticResults = { meta: { fields: cols }, data: expenseRows };
@@ -826,6 +973,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           setCsvMap(map);
           setCsvRows(expenseRows);
           setCsvDepositRows(depositRows);
+          setDepositTypes(initTypes);
         }
       }
     });
@@ -848,31 +996,37 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
-    if (includeDeposits) {
-      csvDepositRows.forEach(row => {
-        const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
-        if (!amt || amt <= 0) return;
-        txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: "Income / Deposit", description: row[csvMap.desc] || "Deposit", type: "income" });
-      });
-    }
+    csvDepositRows.forEach(row => {
+      const dtype = depositTypes[row._depositId];
+      if (!dtype || dtype === "skip") return;
+      const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
+      if (!amt || amt <= 0) return;
+      const isExtra = dtype === "extra";
+      txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: isExtra ? "Extra Income" : "Income", description: row[csvMap.desc] || "Deposit", type: "income", incomeKind: dtype });
+    });
     if (txs.length > 0) addTxBatch(txs, true);
-    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setCsvMode(false);
+    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
   };
 
   const handleAddRecurring = () => {
     const a = parseFloat(recAmt);
     if (!recName || !a || a <= 0) return;
     const cat = data.categories.find(c => c.id === recCat);
-    addRecurring({ name: recName, amount: a, categoryId: recCat, categoryName: cat?.name || recCat });
-    setRecName(""); setRecAmt("");
+    const due = parseInt(recDueDay);
+    addRecurring({ name: recName, amount: a, categoryId: recCat, categoryName: cat?.name || recCat, ...(due > 0 && due <= 31 ? { dueDay: due } : {}) });
+    setRecName(""); setRecAmt(""); setRecDueDay("");
   };
 
-  // Filtered transactions
-  const filtered = useMemo(() => monthTx.filter(t => {
-    const matchSearch = !search || t.description.toLowerCase().includes(search.toLowerCase()) || (t.categoryName || "").toLowerCase().includes(search.toLowerCase());
-    const matchCat = filterCat === "all" || t.categoryId === filterCat;
-    return matchSearch && matchCat;
-  }), [monthTx, search, filterCat]);
+  const [searchAll, setSearchAll] = useState(false);
+  // Filtered transactions — when searching, optionally span all months
+  const filtered = useMemo(() => {
+    const pool = (searchAll && search) ? [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)) : monthTx;
+    return pool.filter(t => {
+      const matchSearch = !search || t.description.toLowerCase().includes(search.toLowerCase()) || (t.categoryName || "").toLowerCase().includes(search.toLowerCase());
+      const matchCat = filterCat === "all" || t.categoryId === filterCat;
+      return matchSearch && matchCat;
+    });
+  }, [monthTx, data.transactions, search, filterCat, searchAll]);
 
   return (
     <div>
@@ -899,18 +1053,19 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month.</div>
+            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
+              <input type="number" style={{ ...S.inpSm, width: 72 }} placeholder="Due day" value={recDueDay} onChange={e => setRecDueDay(e.target.value)} min="1" max="31" />
               <select style={S.sel} value={recCat} onChange={e => setRecCat(e.target.value)}>
                 {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRecurring}>Add</button>
             </div>
             {(data.recurring || []).length === 0 ? <div style={S.empty}>No recurring transactions set.</div> : (
-              <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
+              <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
+                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
             )}
           </div>
@@ -955,15 +1110,30 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
                   {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
-                  {csvDepositRows.length > 0 && (
-                    <span style={{ marginLeft: 10 }}>
-                      <label style={{ cursor: "pointer", color: includeDeposits ? "#5B8A72" : "#888" }}>
-                        <input type="checkbox" checked={includeDeposits} onChange={e => setIncludeDeposits(e.target.checked)} style={{ marginRight: 4 }} />
-                        Include {csvDepositRows.length} deposits as income
-                      </label>
-                    </span>
-                  )}
                 </div>
+                {csvDepositRows.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 6 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
+                    <div style={{ overflowX: "auto", maxHeight: 160, overflowY: "auto" }}>
+                      <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
+                        {csvDepositRows.map(row => (
+                          <tr key={row._depositId}>
+                            <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                            <td style={S.td}>{row[csvMap.desc]}</td>
+                            <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                            <td style={S.td}>
+                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "extra"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
+                                <option value="income">Income</option>
+                                <option value="extra">Extra Income</option>
+                                <option value="skip">Skip</option>
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody></table>
+                    </div>
+                  </div>
+                )}
                 <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
@@ -983,8 +1153,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                   {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
-                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + (includeDeposits ? csvDepositRows.length : 0)} Transactions</button>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); }}>Cancel</button>
+                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -999,6 +1169,11 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           <option value="all">All categories</option>
           {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        {search && (
+          <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Search all months">
+            {searchAll ? "All months" : "This month"}
+          </button>
+        )}
       </div>
 
       <div style={S.card}>
@@ -1008,7 +1183,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>deposit</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1289,17 +1464,18 @@ function TrendsTab({ data, month }) {
   const [compareB, setCompareB] = useState(month);
 
   const getMonthSpend = useCallback((m) => {
-    const txs = data.transactions.filter(t => monthKey(t.date) === m);
+    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income");
     const totals = {};
     data.categories.forEach(c => { totals[c.id] = 0; });
     txs.forEach(t => { totals[t.categoryId] = (totals[t.categoryId] || 0) + t.amount; });
-    return { totals, total: txs.reduce((s, t) => s + t.amount, 0) };
+    const depositIncome = data.transactions.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+    return { totals, total: txs.reduce((s, t) => s + t.amount, 0), depositIncome };
   }, [data]);
 
   const trendData = useMemo(() => {
     return months.map(m => {
-      const { totals, total } = getMonthSpend(m);
-      const row = { month: monthLabel(m), total };
+      const { totals, total, depositIncome } = getMonthSpend(m);
+      const row = { month: monthLabel(m), total, depositIncome };
       data.categories.forEach(c => { row[c.name] = totals[c.id] || 0; });
       return row;
     });
@@ -1332,7 +1508,7 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Savings Rate — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={trendData.map(d => {
-            const income = getMonthlyIncome(data.incomes);
+            const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
@@ -1341,7 +1517,7 @@ function TrendsTab({ data, month }) {
             <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
-                const income = getMonthlyIncome(data.incomes);
+                const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
                 const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
                 return <Cell key={i} fill={rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red} />;
               })}
