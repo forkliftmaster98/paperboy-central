@@ -32,6 +32,26 @@ const DEFAULT_RULES = [
   { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy", categoryId: "shopping" },
 ];
 
+const ACHIEVEMENTS = [
+  { id: "first_income", title: "Income Set", desc: "Added your first income source" },
+  { id: "first_tx", title: "First Log", desc: "Logged your first transaction manually" },
+  { id: "csv_import", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
+  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
+  { id: "all_budgets", title: "Budget Ready", desc: "Set budgets for all spending categories" },
+  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
+  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  { id: "save_20pct", title: "20% Club", desc: "Saved 20%+ of income in a month" },
+  { id: "save_30pct", title: "30% Club", desc: "Saved 30%+ of income in a month" },
+  { id: "first_goal", title: "Goal Setter", desc: "Created your first savings goal" },
+  { id: "first_deposit", title: "First Deposit", desc: "Made your first savings deposit" },
+  { id: "goal_25", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
+  { id: "goal_50", title: "Halfway There", desc: "Reached 50% on any savings goal" },
+  { id: "goal_100", title: "Goal Crusher", desc: "Fully funded a savings goal" },
+  { id: "goals_3", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
+  { id: "emergency_fund", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
+  { id: "first_debt", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
+];
+
 // ── Helpers ───────────────────────────────────────────────
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const fmt = (n) => (n || 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
@@ -45,7 +65,7 @@ const shiftMonthStr = (m, d) => { const [y, mo] = m.split("-").map(Number); cons
 const last6Months = (m) => Array.from({ length: 6 }, (_, i) => shiftMonthStr(m, -(5 - i)));
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], debts: [], rules: DEFAULT_RULES, recurring: [] };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false };
 }
 
 function getMonthlyIncome(incomes) {
@@ -135,6 +155,60 @@ function analyzeFinances(data, month) {
   return tips;
 }
 
+function checkAchievements(data) {
+  const earned = new Set((data.achievements || []).map(a => a.id));
+  const newIds = [];
+  const unlock = (id) => { if (!earned.has(id)) { earned.add(id); newIds.push(id); } };
+
+  if (data.incomes.length > 0) unlock("first_income");
+
+  const manualTxs = (data.transactions || []).filter(t => !t.fromRecurring && !t.isSavingsDeposit);
+  if (manualTxs.length > 0) unlock("first_tx");
+  if (manualTxs.length >= 50) unlock("tx_50");
+
+  if (data.csvImported) unlock("csv_import");
+
+  const spendCats = (data.categories || []).filter(c => c.id !== "savings_deposit");
+  if (spendCats.length > 0 && spendCats.every(c => c.budget > 0)) unlock("all_budgets");
+
+  if ((data.savings || []).length > 0) unlock("first_goal");
+  if ((data.transactions || []).some(t => t.isSavingsDeposit)) unlock("first_deposit");
+
+  if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.25)) unlock("goal_25");
+  if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.5)) unlock("goal_50");
+  const completedGoals = (data.savings || []).filter(g => g.target > 0 && g.saved >= g.target);
+  if (completedGoals.length > 0) unlock("goal_100");
+  if (completedGoals.length >= 3) unlock("goals_3");
+
+  if ((data.debts || []).length > 0) unlock("first_debt");
+
+  const income = getMonthlyIncome(data.incomes);
+  const totalSaved = (data.savings || []).reduce((s, g) => s + g.saved, 0);
+  if (income > 0 && totalSaved >= income * 3) unlock("emergency_fund");
+
+  const months = [...new Set((data.transactions || []).map(t => monthKey(t.date)))].filter(Boolean).sort();
+  const totalBudget = (data.categories || []).reduce((s, c) => s + c.budget, 0);
+  let streak = 0;
+  months.forEach(m => {
+    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m);
+    const spent = txs.reduce((s, t) => s + t.amount, 0);
+    if (income > 0) {
+      const savedPct = (income - spent) / income;
+      if (savedPct >= 0.2) unlock("save_20pct");
+      if (savedPct >= 0.3) unlock("save_30pct");
+    }
+    if (totalBudget > 0 && spent <= totalBudget) {
+      unlock("budget_month");
+      streak++;
+      if (streak >= 3) unlock("budget_streak");
+    } else {
+      streak = 0;
+    }
+  });
+
+  return newIds;
+}
+
 // ── Design tokens ─────────────────────────────────────────
 const C = {
   bg: "#0A0A0A",
@@ -220,6 +294,23 @@ function PaperBoySVG({ size = 40 }) {
   );
 }
 
+// ── Achievement Toast ─────────────────────────────────────
+function AchievementToast({ achievement, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 4000);
+    return () => clearTimeout(t);
+  }, [onDone]);
+  return (
+    <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: C.greenDim, border: "1px solid " + C.green, borderRadius: 12, padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(34,197,94,0.3)", maxWidth: 320, animation: "none" }}>
+      <span style={{ fontSize: 22 }}>🏆</span>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>{achievement.title}</div>
+        <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>{achievement.desc}</div>
+      </div>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════
 //  MAIN APP
 // ════════════════════════════════════════════════════════
@@ -229,10 +320,20 @@ export default function BudgetManager() {
   const [month, setMonth] = useState(curMonth());
   const [loading, setLoading] = useState(true);
   const [pbOpen, setPbOpen] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const save = useCallback(async (nd) => {
-    setData(nd);
-    try { await window.storage.set(STORAGE_KEY, JSON.stringify(nd)); } catch(e) { console.error(e); }
+    const newIds = checkAchievements(nd);
+    let finalData = nd;
+    if (newIds.length > 0) {
+      const today = todayStr();
+      const newAch = newIds.map(id => ({ id, unlockedAt: today }));
+      finalData = { ...nd, achievements: [...(nd.achievements || []), ...newAch] };
+      const def = ACHIEVEMENTS.find(a => a.id === newIds[0]);
+      if (def) setToast(def);
+    }
+    setData(finalData);
+    try { await window.storage.set(STORAGE_KEY, JSON.stringify(finalData)); } catch(e) { console.error(e); }
   }, []);
 
   // Auto-generate recurring transactions on load
@@ -286,7 +387,7 @@ export default function BudgetManager() {
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
-  const addTxBatch = (txs) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))] });
+  const addTxBatch = (txs, isCSV = false) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}) });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
   const addInc = (i) => save({ ...data, incomes: [...data.incomes, { ...i, id: uid() }] });
   const delInc = (id) => save({ ...data, incomes: data.incomes.filter(i => i.id !== id) });
@@ -335,7 +436,7 @@ export default function BudgetManager() {
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
           {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
-          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} />}
+          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
         </div>
       </div>
@@ -349,6 +450,9 @@ export default function BudgetManager() {
           </button>
         ))}
       </nav>
+
+      {/* Achievement toast */}
+      {toast && <AchievementToast achievement={toast} onDone={() => setToast(null)} />}
 
       {/* PaperBoy */}
       <div style={S.pbFloat}>
@@ -392,7 +496,8 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
     }).join("\n") || "None";
     const dbts = data.debts.map(d => `${d.name}: ${fmt(d.balance)} balance at ${d.rate}% APR, paying ${fmt(d.minPayment + d.extraPayment)}/mo, payoff: ${calcPayoff(d.balance, d.rate, d.minPayment + d.extraPayment).text}`).join("\n") || "None";
     const rec = (data.recurring || []).map(r => `${r.name}: ${fmt(r.amount)}/mo`).join("\n") || "None";
-    return `Month: ${monthLabelLong(month)}\nMonthly income: ${fmt(totalIncome)}\nSpent this month: ${fmt(totalSpent)}\nRemaining: ${fmt(totalIncome - totalSpent)}\n\nCategory budgets vs spending:\n${cats}\n\nSavings goals:\n${savs}\n\nDebts:\n${dbts}\n\nRecurring bills:\n${rec}`;
+    const earned = (data.achievements || []).map(a => { const def = ACHIEVEMENTS.find(x => x.id === a.id); return def ? def.title : a.id; }).join(", ") || "None yet";
+    return `Month: ${monthLabelLong(month)}\nMonthly income: ${fmt(totalIncome)}\nSpent this month: ${fmt(totalSpent)}\nRemaining: ${fmt(totalIncome - totalSpent)}\n\nCategory budgets vs spending:\n${cats}\n\nSavings goals:\n${savs}\n\nDebts:\n${dbts}\n\nRecurring bills:\n${rec}\n\nAchievements earned (${(data.achievements || []).length}/${ACHIEVEMENTS.length}): ${earned}`;
   };
 
   useEffect(() => {
@@ -521,12 +626,30 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const tips = analyzeFinances(data, month);
   const alertTips = tips.filter(t => t.type !== "good" && t.type !== "goal");
 
+  const totalSaved = data.savings.reduce((s, g) => s + g.saved, 0);
+  const totalDebt = data.debts.reduce((s, d) => s + d.balance, 0);
+  const netWorth = totalSaved - totalDebt;
+  const earnedCount = (data.achievements || []).length;
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
         <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
         <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+        <div style={S.card}>
+          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 22 }}>{fmt(netWorth)}</div>
+          <div style={S.statL}>Net Worth</div>
+          {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
+        </div>
+        <div style={S.card}>
+          <div style={{ ...S.statV, color: C.amber, fontSize: 22 }}>{earnedCount}<span style={{ fontSize: 13, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
+          <div style={S.statL}>Achievements</div>
+          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab for details</div>}
+        </div>
       </div>
 
       {totalBudgeted > 0 && (
@@ -662,7 +785,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
       txs.push({ date: dateStr, amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
-    if (txs.length > 0) addTxBatch(txs);
+    if (txs.length > 0) addTxBatch(txs, true);
     setCsvData(null); setCsvRows([]); setCsvMode(false);
   };
 
@@ -915,7 +1038,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
 // ════════════════════════════════════════════════════════
 //  GOALS TAB
 // ════════════════════════════════════════════════════════
-function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome }) {
+function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome, achievements }) {
   const [gName, setGName] = useState("");
   const [gTarget, setGTarget] = useState("");
   const [gDate, setGDate] = useState("");
@@ -926,6 +1049,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
   const [dExtra, setDExtra] = useState("");
   const [simId, setSimId] = useState(null);
   const [simExtra, setSimExtra] = useState("");
+  const [depositAmounts, setDepositAmounts] = useState({});
 
   const handleAddGoal = () => { const t = parseFloat(gTarget); if (!gName || !t) return; addSav({ name: gName, target: t, targetDate: gDate || null, saved: 0 }); setGName(""); setGTarget(""); setGDate(""); };
   const handleAddDebt = () => { const b = parseFloat(dBal); if (!dName || !b) return; addDbt({ name: dName, balance: b, rate: parseFloat(dRate) || 0, minPayment: parseFloat(dMin) || 0, extraPayment: parseFloat(dExtra) || 0 }); setDName(""); setDBal(""); setDRate(""); setDMin(""); setDExtra(""); };
@@ -943,32 +1067,51 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
         </div>
         {data.savings.length === 0 ? <div style={S.empty}>No savings goals.</div> : data.savings.map(g => {
           const p = pct(g.saved, g.target);
+          const completed = g.saved >= g.target && g.target > 0;
           const monthsLeft = g.targetDate ? Math.max(1, Math.ceil((new Date(g.targetDate) - new Date()) / (1000 * 60 * 60 * 24 * 30))) : null;
-          const needed = monthsLeft ? (g.target - g.saved) / monthsLeft : null;
+          const needed = monthsLeft && !completed ? (g.target - g.saved) / monthsLeft : null;
           const onPace = needed !== null && totalIncome > 0 ? needed <= totalIncome * 0.3 : true;
+          const handleDeposit = () => {
+            const v = parseFloat(depositAmounts[g.id]);
+            if (v > 0) { depositSav(g, v); setDepositAmounts(prev => ({ ...prev, [g.id]: "" })); }
+          };
           return (
             <div key={g.id} style={{ padding: "12px 0", borderBottom: "1px solid #222" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <span style={{ fontWeight: 500 }}>{g.name}</span>
+                <span style={{ fontWeight: 500 }}>{g.name}{completed && <span style={{ marginLeft: 6, background: C.green, color: "#000", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99 }}>FUNDED</span>}</span>
                 <span style={{ fontSize: 11, color: "#888" }}>{g.targetDate || "No deadline"}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#AAA", margin: "3px 0" }}>
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
-                <span>{p}%</span>
+                <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
-              <div style={S.bar}><div style={S.barF(p, "#5B8A72")} /></div>
+              <div style={S.bar}><div style={S.barF(Math.min(p, 100), completed ? C.green : "#5B8A72")} /></div>
               {needed !== null && (
                 <div style={{ fontSize: 11, color: onPace ? C.green : C.amber, marginTop: 4 }}>
                   {fmt(needed)}/mo needed to hit deadline {!onPace && "-- may need to adjust"}
                 </div>
               )}
-              <div style={{ marginTop: 6, display: "flex", gap: 5, alignItems: "center" }}>
-                <input type="number" placeholder="$ deposit" style={{ ...S.inpSm, width: 85, padding: "3px 6px", fontSize: 12 }}
-                  onKeyDown={e => { if (e.key === "Enter") { const v = parseFloat(e.target.value); if (v > 0) { depositSav(g, v); e.target.value = ""; } } }} />
-                <span style={{ fontSize: 10, color: "#555" }}>Enter to deposit</span>
-                <div style={{ flex: 1 }} />
-                <button style={S.btnD} onClick={() => delSav(g.id)}>Remove</button>
-              </div>
+              {!completed && (
+                <div style={{ marginTop: 6, display: "flex", gap: 5, alignItems: "center" }}>
+                  <input
+                    type="number"
+                    placeholder="$ deposit"
+                    style={{ ...S.inpSm, width: 85, padding: "3px 6px", fontSize: 12 }}
+                    value={depositAmounts[g.id] || ""}
+                    onChange={e => setDepositAmounts(prev => ({ ...prev, [g.id]: e.target.value }))}
+                    onKeyDown={e => e.key === "Enter" && handleDeposit()}
+                  />
+                  <button style={{ ...S.btn, padding: "4px 12px", fontSize: 12 }} onClick={handleDeposit}>Deposit</button>
+                  <div style={{ flex: 1 }} />
+                  <button style={S.btnD} onClick={() => delSav(g.id)}>Remove</button>
+                </div>
+              )}
+              {completed && (
+                <div style={{ marginTop: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: C.green }}>Goal complete!</span>
+                  <button style={S.btnD} onClick={() => delSav(g.id)}>Remove</button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -1034,6 +1177,27 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
           </div>
         </div>
       </div>
+
+      {/* Achievements */}
+      <div style={S.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={S.cTitle}>Achievements</div>
+          <span style={{ fontSize: 12, color: C.amber, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {ACHIEVEMENTS.map(a => {
+            const earned = achievements.find(e => e.id === a.id);
+            return (
+              <div key={a.id} style={{ background: earned ? C.greenDim + "66" : C.surfaceHigh, border: "1px solid " + (earned ? C.green + "55" : C.border), borderRadius: 8, padding: "10px 12px", opacity: earned ? 1 : 0.45 }}>
+                <div style={{ fontSize: 16, marginBottom: 3 }}>{earned ? "🏆" : "🔒"}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: earned ? C.text : C.textDim }}>{a.title}</div>
+                <div style={{ fontSize: 10, color: C.textDim, marginTop: 2, lineHeight: 1.3 }}>{a.desc}</div>
+                {earned && <div style={{ fontSize: 9, color: C.green, marginTop: 4 }}>{earned.unlockedAt}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1086,6 +1250,29 @@ function TrendsTab({ data, month }) {
 
   return (
     <div>
+      <div style={S.card}>
+        <div style={S.cTitle}>Savings Rate — Last 6 Months</div>
+        <ResponsiveContainer width="100%" height={160}>
+          <BarChart data={trendData.map(d => {
+            const income = getMonthlyIncome(data.incomes);
+            const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
+            return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
+          })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+            <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+            <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
+              {trendData.map((d, i) => {
+                const income = getMonthlyIncome(data.incomes);
+                const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
+                return <Cell key={i} fill={rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red} />;
+              })}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <div style={{ fontSize: 10, color: C.textDim, textAlign: "center" }}>Green = 20%+ · Amber = 10–19% · Red = under 10%</div>
+      </div>
+
       <div style={S.card}>
         <div style={S.cTitle}>Total Spending — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={220}>
