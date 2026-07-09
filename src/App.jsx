@@ -830,7 +830,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         depositRows.forEach(row => {
           const desc = String(row[descCol] || "").toLowerCase();
           const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep/.test(desc);
-          initTypes[row._depositId] = isPayroll ? "income" : "skip";
+          initTypes[row._depositId] = isPayroll ? "income" : "extra";
         });
 
         if (expenseRows.length > 0 || depositRows.length > 0) {
@@ -863,10 +863,12 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
     csvDepositRows.forEach(row => {
-      if (depositTypes[row._depositId] !== "income") return;
+      const dtype = depositTypes[row._depositId];
+      if (!dtype || dtype === "skip") return;
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
-      txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: "Income / Deposit", description: row[csvMap.desc] || "Deposit", type: "income" });
+      const isExtra = dtype === "extra";
+      txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: isExtra ? "Extra Income" : "Income", description: row[csvMap.desc] || "Deposit", type: "income", incomeKind: dtype });
     });
     if (txs.length > 0) addTxBatch(txs, true);
     setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
@@ -980,8 +982,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                             <td style={S.td}>{row[csvMap.desc]}</td>
                             <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                             <td style={S.td}>
-                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "skip"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
+                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "extra"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
                                 <option value="income">Income</option>
+                                <option value="extra">Extra Income</option>
                                 <option value="skip">Skip</option>
                               </select>
                             </td>
@@ -1010,7 +1013,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                   {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
-                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => depositTypes[r._depositId] === "income").length} Transactions</button>
+                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
                   <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
                 </div>
               </div>
@@ -1035,7 +1038,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>deposit</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
           </tbody></table></div>
         )}
       </div>
