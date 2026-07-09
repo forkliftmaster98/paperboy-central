@@ -234,7 +234,7 @@ const C = {
   amber: "#F59E0B",
   text: "#F1F5F9",
   textMid: "#94A3B8",
-  textDim: "#475569",
+  textDim: "#7A8FA6",
 };
 
 // ── Styles ────────────────────────────────────────────────
