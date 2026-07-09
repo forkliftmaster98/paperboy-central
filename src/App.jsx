@@ -24,11 +24,22 @@ const DEFAULT_CATEGORIES = [
 const DEFAULT_RULES = [
   { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
-  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple,youtube", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco,subway,wendy,restaurant,cafe,diner", categoryId: "dining" },
-  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy", categoryId: "shopping" },
+  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,steamgames,doordash,grubhub", categoryId: "subscriptions" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya", categoryId: "dining" },
+  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth", categoryId: "groceries" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe", categoryId: "shopping" },
+  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur", categoryId: "insurance" },
+  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness", categoryId: "leisure" },
+  { id: "r10", keywords: "capital one,venmo,ally,car payment,loan payment,mobile pmt", categoryId: "misc" },
+  { id: "r11", keywords: "grape ape,vape,smoke,tobacco,cigarette", categoryId: "personal" },
+  { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket", categoryId: "leisure" },
+  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "misc" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube", categoryId: "misc" },
+  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms", categoryId: "groceries" },
+  { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
+  { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
 ];
 
 const ACHIEVEMENTS = [
@@ -750,23 +761,67 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
   const handleCSV = (file) => {
     Papa.parse(file, {
-      header: true, skipEmptyLines: true,
+      header: false, skipEmptyLines: true,
       complete: (results) => {
-        if (results.data.length > 0) {
-          setCsvData(results);
-          const cols = results.meta.fields || [];
-          const dateCols = cols.filter(c => /date|time/i.test(c));
-          const amtCols = cols.filter(c => /amount|total|price|debit|credit|sum/i.test(c));
-          const descCols = cols.filter(c => /desc|memo|note|narr|detail|merchant|payee/i.test(c));
-          const map = { date: dateCols[0] || cols[0] || "", amount: amtCols[0] || cols[1] || "", desc: descCols[0] || cols[2] || "" };
-          setCsvMap(map);
-          // Build rows with auto-categorization
-          const rows = results.data.map(row => {
-            const d = row[map.desc] || "";
+        // Find the real header row (contains "Date" and "Amount" or "Description")
+        let headerIdx = -1;
+        for (let i = 0; i < Math.min(results.data.length, 10); i++) {
+          const row = results.data[i];
+          const joined = row.join(",").toLowerCase();
+          if (joined.includes("date") && (joined.includes("amount") || joined.includes("description"))) {
+            headerIdx = i;
+            break;
+          }
+        }
+        if (headerIdx === -1) headerIdx = 0; // fallback
+
+        const headers = results.data[headerIdx];
+        const dataRows = results.data.slice(headerIdx + 1);
+
+        const cols = headers.map(h => String(h).trim());
+        const colIdx = (patterns) => {
+          const idx = cols.findIndex(c => patterns.some(p => c.toLowerCase().includes(p)));
+          return idx >= 0 ? cols[idx] : null;
+        };
+
+        const dateCol = colIdx(["date", "time"]) || cols[0];
+        const amtCol = colIdx(["amount", "total", "debit", "credit", "sum"]) || cols[1];
+        const descCol = colIdx(["desc", "memo", "note", "narr", "detail", "merchant", "payee"]) || cols[2];
+
+        const map = { date: dateCol, amount: amtCol, desc: descCol };
+        const dateIdx = cols.indexOf(dateCol);
+        const amtIdx = cols.indexOf(amtCol);
+        const descIdx = cols.indexOf(descCol);
+
+        // Parse rows into objects, filter out summary/balance rows and income (positive amounts)
+        const parsedRows = dataRows
+          .map(row => {
+            const obj = {};
+            cols.forEach((h, i) => { obj[h] = row[i] || ""; });
+            return obj;
+          })
+          .filter(row => {
+            const rawAmt = String(row[amtCol] || "").replace(/[^0-9.-]/g, "");
+            const amt = parseFloat(rawAmt);
+            // Skip rows with no amount, zero amount, or positive amounts (income/credits)
+            if (!rawAmt || isNaN(amt) || amt >= 0) return false;
+            // Skip rows where description looks like a balance summary line
+            const desc = String(row[descCol] || "").toLowerCase();
+            if (desc.includes("beginning balance") || desc.includes("ending balance") || desc.includes("total credits") || desc.includes("total debits")) return false;
+            return true;
+          })
+          .map(row => {
+            const d = row[descCol] || "";
             const matched = autoCategory(d, data.rules || [], data.categories);
             return { ...row, _catId: matched?.id || csvCat, _matched: !!matched };
           });
-          setCsvRows(rows);
+
+        if (parsedRows.length > 0) {
+          // Build synthetic results object for compatibility
+          const syntheticResults = { meta: { fields: cols }, data: parsedRows };
+          setCsvData(syntheticResults);
+          setCsvMap(map);
+          setCsvRows(parsedRows);
         }
       }
     });
@@ -779,8 +834,16 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       const rawAmt = String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "");
       const amt = Math.abs(parseFloat(rawAmt));
       if (!amt || amt <= 0) return;
-      const parsed = new Date(row[csvMap.date] || "");
-      const dateStr = isNaN(parsed.getTime()) ? todayStr() : parsed.toISOString().slice(0, 10);
+      const rawDate = String(row[csvMap.date] || "").trim();
+      // Support MM/DD/YYYY (Bank of America) and YYYY-MM-DD
+      let dateStr = todayStr();
+      const mmddyyyy = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (mmddyyyy) {
+        dateStr = `${mmddyyyy[3]}-${mmddyyyy[1].padStart(2,"0")}-${mmddyyyy[2].padStart(2,"0")}`;
+      } else {
+        const parsed = new Date(rawDate);
+        if (!isNaN(parsed.getTime())) dateStr = parsed.toISOString().slice(0, 10);
+      }
       const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
       txs.push({ date: dateStr, amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
     });
