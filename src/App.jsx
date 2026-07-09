@@ -630,6 +630,104 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
 }
 
 // ════════════════════════════════════════════════════════
+//  BILL CALENDAR
+// ════════════════════════════════════════════════════════
+function BillCalendar({ recurring, month }) {
+  const [y, mo] = month.split("-").map(Number);
+  const firstDow = new Date(y, mo - 1, 1).getDay(); // 0=Sun
+  const daysInMo = new Date(y, mo, 0).getDate();
+  const today = new Date();
+  const todayDay = today.getFullYear() === y && today.getMonth() + 1 === mo ? today.getDate() : null;
+
+  // Map dueDay → bills
+  const byDay = {};
+  (recurring || []).forEach(r => {
+    if (!r.dueDay) return;
+    const d = Math.min(r.dueDay, daysInMo);
+    if (!byDay[d]) byDay[d] = [];
+    byDay[d].push(r);
+  });
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMo; d++) cells.push(d);
+
+  const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const isPast = (d) => todayDay !== null && d < todayDay;
+  const isToday = (d) => d === todayDay;
+  const hasBill = (d) => !!byDay[d];
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 6 }}>
+        {DOW.map(d => <div key={d} style={{ textAlign: "center", fontSize: 9, color: C.textDim, fontWeight: 600, padding: "2px 0" }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} />;
+          const bills = byDay[d] || [];
+          const past = isPast(d);
+          const tdy = isToday(d);
+          return (
+            <div key={i} title={bills.map(r => `${r.name} — ${fmt(r.amount)}`).join("\n")} style={{
+              borderRadius: 6,
+              padding: "4px 2px",
+              minHeight: 38,
+              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#1A1A1A" : "#2A1A0E") : "transparent",
+              border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
+              opacity: past && !bills.length ? 0.35 : 1,
+              cursor: bills.length ? "default" : "default",
+              position: "relative",
+            }}>
+              <div style={{ textAlign: "center", fontSize: 11, fontWeight: tdy ? 700 : 400, color: tdy ? C.green : past ? C.textDim : C.textMid }}>
+                {d}
+              </div>
+              {bills.map((r, bi) => (
+                <div key={bi} style={{
+                  fontSize: 9,
+                  lineHeight: 1.2,
+                  color: past ? C.textDim : C.amber,
+                  textAlign: "center",
+                  marginTop: 1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  padding: "0 1px",
+                }}>
+                  {r.name.length > 7 ? r.name.slice(0, 6) + "…" : r.name}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {Object.keys(byDay).length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+          {Object.entries(byDay).sort((a, b) => Number(a[0]) - Number(b[0])).map(([day, bills]) =>
+            bills.map(r => {
+              const d = Number(day);
+              const past = isPast(d);
+              const tdy = isToday(d);
+              return (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, opacity: past ? 0.5 : 1 }}>
+                  <span style={{ color: C.text }}>{r.name}</span>
+                  <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontFamily: "monospace", color: C.textMid }}>{fmt(r.amount)}</span>
+                    <span style={{ fontSize: 10, color: tdy ? C.red : past ? C.textDim : C.amber, minWidth: 52, textAlign: "right" }}>
+                      {tdy ? "due today" : past ? `was ${d}th` : `due ${d}th`}
+                    </span>
+                  </span>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════════════
 function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIncome, month }) {
@@ -657,11 +755,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const forecastSpend = isCurrentMonth && dayOfMonth > 0 ? Math.round((totalSpent / dayOfMonth) * daysInMonth) : null;
 
-  // Bill due alerts
-  const billAlerts = (data.recurring || []).filter(r => r.dueDay).map(r => {
-    const daysUntil = r.dueDay - dayOfMonth;
-    return { ...r, daysUntil };
-  }).filter(r => isCurrentMonth && r.daysUntil >= 0 && r.daysUntil <= 5).sort((a, b) => a.daysUntil - b.daysUntil);
+  const hasBillDates = (data.recurring || []).some(r => r.dueDay);
 
   return (
     <div>
@@ -689,31 +783,20 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         </div>
       </div>
 
-      {(forecastSpend !== null || billAlerts.length > 0) && (
+      {forecastSpend !== null && (
         <div style={S.card}>
-          {forecastSpend !== null && (
-            <div style={{ marginBottom: billAlerts.length > 0 ? 10 : 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                <span style={S.cTitle}>Spending Forecast</span>
-                <span style={{ fontSize: 12, color: forecastSpend > totalBudgeted && totalBudgeted > 0 ? C.red : C.textMid, fontFamily: "monospace" }}>on pace for {fmt(forecastSpend)} this month</span>
-              </div>
-              <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>Day {dayOfMonth} of {daysInMonth} · {fmt(totalSpent)} spent so far</div>
-            </div>
-          )}
-          {billAlerts.length > 0 && (
-            <div>
-              <div style={{ ...S.cTitle, marginBottom: 6 }}>Bills Due Soon</div>
-              {billAlerts.map(r => (
-                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid " + C.border }}>
-                  <span style={{ fontSize: 13 }}>{r.name}</span>
-                  <span style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 13 }}>{fmt(r.amount)}</span>
-                    <span style={{ fontSize: 11, color: r.daysUntil === 0 ? C.red : r.daysUntil <= 2 ? C.amber : C.textMid }}>{r.daysUntil === 0 ? "due today" : `due in ${r.daysUntil}d`}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={S.cTitle}>Spending Forecast</span>
+            <span style={{ fontSize: 12, color: forecastSpend > totalBudgeted && totalBudgeted > 0 ? C.red : C.textMid, fontFamily: "monospace" }}>on pace for {fmt(forecastSpend)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: C.textDim, marginTop: 2 }}>Day {dayOfMonth} of {daysInMonth} · {fmt(totalSpent)} spent so far</div>
+        </div>
+      )}
+
+      {hasBillDates && (
+        <div style={S.card}>
+          <div style={S.cTitle}>Bill Calendar — {monthLabelLong(month)}</div>
+          <BillCalendar recurring={data.recurring} month={month} />
         </div>
       )}
 
