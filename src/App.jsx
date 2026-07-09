@@ -4,7 +4,6 @@ import Papa from "papaparse";
 
 // ── Constants ────────────────────────────────────────────
 const STORAGE_KEY = "budget-manager-v3";
-const TABS = ["Dashboard", "Transactions", "Budget", "Goals", "Trends"];
 const COLORS = ["#5B8A72","#C9A227","#9C4A3C","#3E7C74","#8B6DB0","#C97B3A","#5A7FA5","#D4756B","#6BAA75","#B8964E","#7A6B8A","#4A90A0"];
 
 const DEFAULT_CATEGORIES = [
