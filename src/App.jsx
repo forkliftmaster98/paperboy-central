@@ -14,6 +14,16 @@ const CAT_COLORS = {
   personal: "#D879C9", auto: "#5FA8F5", medical: "#E85D75", pet: "#C4A35A",
   donations: "#F2C14E", transfers: "#8A9BB8", trading: "#63D4A0", cash: "#A0AEC4", misc: "#7A8AA8",
 };
+// Transaction fingerprint for duplicate detection across CSV re-imports.
+// Signed amount separates a $50 expense from a $50 deposit on the same day.
+const isoFromRaw = (raw) => {
+  const m = String(raw || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}`;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+};
+const txFingerprint = (dateIso, signedAmt, desc) => `${dateIso}|${signedAmt.toFixed(2)}|${String(desc).trim().toLowerCase().slice(0, 60)}`;
+
 const sortCats = (cats) => [...cats].sort((a, b) => a.name.localeCompare(b.name));
 const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
 
@@ -163,7 +173,7 @@ const storageBackend = {
 };
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null, importExclusions: [] };
 }
 
 function getMonthlyIncome(incomes) {
@@ -666,6 +676,7 @@ export default function BudgetManager() {
   const addTxBatch = (txs, isCSV = false, extra = {}) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}), ...extra });
   const saveCheckingBalance = (cb) => save({ ...data, checkingBalance: cb });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
+  const updTxAmt = (id, amount) => save({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, amount } : t) });
   const updTxCat = (id, catId) => {
     const cat = data.categories.find(c => c.id === catId);
     save({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, categoryId: catId, categoryName: cat?.name || catId } : t) });
@@ -737,7 +748,7 @@ export default function BudgetManager() {
 
         <div key={tab} className="page-anim" style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} updTxAmt={updTxAmt} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
           {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} addSavAcct={addSavAcct} updSavAcct={updSavAcct} delSavAcct={delSavAcct} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
@@ -753,7 +764,34 @@ export default function BudgetManager() {
               <div style={{ fontWeight: 700, fontSize: 14 }}>Settings</div>
               <button onClick={() => setSettingsOpen(false)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 16 }}>✕</button>
             </div>
-            <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>More options coming soon (themes, export, and more).</div>
+            <div style={{ fontSize: 11, color: C.textDim, marginBottom: 12, lineHeight: 1.5 }}>Your data lives only on this device. Export a backup regularly — clearing browser data or switching devices will erase it.</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              <button style={S.btnG} onClick={() => {
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = `paperboy-backup-${todayStr()}.json`; a.click();
+                URL.revokeObjectURL(url);
+              }}>⬇ Export backup</button>
+              <label style={{ ...S.btnG, cursor: "pointer" }}>
+                ⬆ Restore backup
+                <input type="file" accept=".json,application/json" style={{ display: "none" }} onChange={e => {
+                  const f = e.target.files[0]; if (!f) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    try {
+                      const parsed = JSON.parse(reader.result);
+                      if (!Array.isArray(parsed.transactions) || !Array.isArray(parsed.categories)) throw new Error("not a PaperBoy backup");
+                      save({ ...getDefaultState(), ...parsed });
+                      setSettingsOpen(false);
+                    } catch (err) { alert("That file doesn't look like a PaperBoy backup: " + err.message); }
+                  };
+                  reader.readAsText(f);
+                  e.target.value = "";
+                }} />
+              </label>
+            </div>
+            <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>Themes and more options coming soon.</div>
             <div style={{ borderTop: "1px solid " + C.border, paddingTop: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.red, marginBottom: 6 }}>Danger Zone</div>
               {!wipeConfirm ? (
@@ -936,8 +974,8 @@ You also know how this app works and can answer usage questions:
       // Rules-based fallback
       const tips = analyzeFinances(data, month);
       const fallback = tips.length > 0
-        ? `Can't connect right now. Here's what I see:\n\n${tips.map(t => `- ${t.msg}`).join("\n")}`
-        : "Can't connect right now. Try again in a moment.";
+        ? `Heads up: live AI chat isn't connected in this version of the app yet, so I can't hold a conversation. But here's my rules-based read of your numbers:\n\n${tips.map(t => `- ${t.msg}`).join("\n")}`
+        : "Heads up: live AI chat isn't connected in this version of the app yet. Check the dashboard alerts for my rules-based analysis.";
       setMessages(prev => [...prev, { role: "pb", text: fallback }]);
     }
     setThinking(false);
@@ -1294,13 +1332,15 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 // ════════════════════════════════════════════════════════
 //  TRANSACTIONS + CSV + RECURRING
 // ════════════════════════════════════════════════════════
-function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRecurring, delRecurring, payDebt, applyDebtPayments, saveCheckingBalance }) {
+function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTxAmt, addRecurring, delRecurring, payDebt, applyDebtPayments, saveCheckingBalance }) {
   const [date, setDate] = useState(todayStr());
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState(data.categories[0]?.id || "");
   const [debtId, setDebtId] = useState("__none__");
   const [desc, setDesc] = useState("");
   const [editCatId, setEditCatId] = useState(null);
+  const [editAmtId, setEditAmtId] = useState(null);
+  const [editAmtVal, setEditAmtVal] = useState("");
   const [csvMode, setCsvMode] = useState(false);
   const [recurringMode, setRecurringMode] = useState(false);
   const [csvData, setCsvData] = useState(null);
@@ -1400,19 +1440,54 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
           .map((row, i) => ({ ...row, _depositId: i }));
 
+        // Duplicate detection: fingerprint everything already in the ledger (as a
+        // multiset — two identical same-day charges import fine the first time and
+        // are both matched on re-import), plus fingerprints excluded in past imports.
+        const ledgerCounts = new Map();
+        data.transactions.forEach(t => {
+          const fp = txFingerprint(t.date, (t.type === "income" ? 1 : -1) * t.amount, t.description);
+          ledgerCounts.set(fp, (ledgerCounts.get(fp) || 0) + 1);
+        });
+        const rememberedExclusions = new Set(data.importExclusions || []);
+        const rowFp = (row) => {
+          const iso = isoFromRaw(row[dateCol]) || todayStr();
+          const signed = parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, ""));
+          return txFingerprint(iso, signed, row[descCol] || "");
+        };
+        expenseRows.forEach(row => {
+          const fp = rowFp(row);
+          if ((ledgerCounts.get(fp) || 0) > 0) {
+            ledgerCounts.set(fp, ledgerCounts.get(fp) - 1);
+            row._excluded = true; row._dup = true;
+          } else if (rememberedExclusions.has(fp)) {
+            row._excluded = true; row._remembered = true;
+          }
+          row._fp = fp;
+        });
+
         // Auto-detect payroll rows and flag bounced returns/refunds
         const initTypes = {};
         depositRows.forEach(row => {
+          row._fp = rowFp(row);
           const desc = String(row[descCol] || "").toLowerCase();
           const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep|ondrick natural/.test(desc);
           const isBounce = /return of posted check|returned check|returned item/.test(desc);
           // Only treat as a refund if it looks like a merchant refund (has a merchant-style name before "refund")
           // Exclude financial/tax transfers that happen to contain the word "refund"
           const isRefund = /refund/.test(desc) && !/fbo refund|tax refund|intuit payments|transfer.*refund|refund proc/.test(desc);
-          if (isBounce) {
+          // Transfers from your own accounts and resale payouts are not income
+          const isInternalTransfer = /robinhood|coinbase|ticketmaster|transfer venmo/.test(desc);
+          if ((ledgerCounts.get(row._fp) || 0) > 0) {
+            ledgerCounts.set(row._fp, ledgerCounts.get(row._fp) - 1);
+            initTypes[row._depositId] = "skip"; row._dup = true;
+          } else if (rememberedExclusions.has(row._fp)) {
+            initTypes[row._depositId] = "skip"; row._remembered = true;
+          } else if (isBounce) {
             initTypes[row._depositId] = "bounce";
           } else if (isRefund) {
             initTypes[row._depositId] = "refund";
+          } else if (isInternalTransfer) {
+            initTypes[row._depositId] = "skip";
           } else {
             initTypes[row._depositId] = isPayroll ? "income" : "extra";
           }
@@ -1487,8 +1562,18 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       ? { amount: csvLastBalance.amount, asOf: balanceAsOf }
       : data.checkingBalance;
 
-    if (txs.length > 0) addTxBatch(txs, true, newCheckingBalance ? { checkingBalance: newCheckingBalance } : {});
-    else if (newCheckingBalance) saveCheckingBalance(newCheckingBalance);
+    // Remember everything deliberately not imported, so re-importing a full-year
+    // CSV later auto-excludes the same rows instead of re-asking (or worse, importing them)
+    const exclusionFps = new Set(data.importExclusions || []);
+    csvRows.forEach(row => { if (row._excluded && row._fp && !row._dup) exclusionFps.add(row._fp); });
+    csvDepositRows.forEach(row => {
+      const dtype = depositTypes[row._depositId];
+      if ((!dtype || ["skip", "bounce", "refund"].includes(dtype)) && row._fp && !row._dup) exclusionFps.add(row._fp);
+    });
+    const extra = { importExclusions: [...exclusionFps].slice(-5000), ...(newCheckingBalance ? { checkingBalance: newCheckingBalance } : {}) };
+
+    if (txs.length > 0) addTxBatch(txs, true, extra);
+    else if (newCheckingBalance || exclusionFps.size > (data.importExclusions || []).length) addTxBatch([], true, extra);
     if (debtPayments.length > 0) applyDebtPayments(debtPayments);
     setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); setCsvMode(false);
   };
@@ -1608,6 +1693,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: C.green, marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
+                    <div style={{ fontSize: 10, color: C.textDim, marginBottom: 6, lineHeight: 1.5 }}>
+                      <b>Income</b> = paycheck · <b>Extra Income</b> = other money in (gifts, side cash) · <b>Refund</b> = a purchase refunded back (not counted) · <b>Bounced Pmt Return</b> = a failed payment coming back (not counted) · <b>Skip</b> = ignore (e.g. moving your own money between accounts)
+                    </div>
                     {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
                       <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
                         ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
@@ -1627,7 +1715,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                           return (
                             <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
                               <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date]}</td>
-                              <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
+                              <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}{row._dup && <span style={{ ...S.underB, marginLeft: 4 }}>already imported</span>}</td>
                               <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: C.green }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                               <td style={S.td}>
                                 <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px", borderColor: isBounce ? C.red : isRefund ? C.amber : C.border }}
@@ -1654,6 +1742,16 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>② Expenses ({csvRows.filter(r => !r._excluded).length} of {csvRows.length}) — auto-categorized, adjust or exclude any that look wrong:</span>
                 </div>
                 <input style={{ ...S.inp, fontSize: 12, padding: "6px 10px", marginBottom: 8 }} placeholder="Filter rows to review (e.g. travelers)..." value={csvFilter} onChange={e => setCsvFilter(e.target.value)} />
+                {csvRows.some(r => r._dup) && (
+                  <div style={{ fontSize: 11, color: C.green, background: C.greenDim + "44", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid " + C.green + "44" }}>
+                    ✓ {csvRows.filter(r => r._dup).length} rows are already in your ledger — auto-excluded so nothing gets double-counted. You can re-import a full-year CSV safely.
+                  </div>
+                )}
+                {csvRows.some(r => r._remembered) && (
+                  <div style={{ fontSize: 11, color: C.textMid, background: C.surfaceHigh, borderRadius: 6, padding: "6px 10px", marginBottom: 6 }}>
+                    ↩ {csvRows.filter(r => r._remembered).length} rows you excluded in a past import were auto-excluded again.
+                  </div>
+                )}
                 {csvRows.some(r => r._isRetry) && (
                   <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
                     ⚠️ "RETRY PYMT" charges detected — if a payment bounced and retried, only the successful attempt should count. Check the box to exclude duplicates.
@@ -1675,6 +1773,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                         <td style={{ ...S.td, fontSize: 11 }}>
                           {csvMap.desc ? row[csvMap.desc] || "" : ""}
                           {row._isRetry && <span style={{ ...S.overB, marginLeft: 4 }}>retry</span>}
+                          {row._dup && <span style={{ ...S.underB, marginLeft: 4 }}>already imported</span>}
+                          {row._remembered && <span style={{ ...S.underB, marginLeft: 4, background: C.surfaceHigh, color: C.textMid }}>excluded before</span>}
                         </td>
                         <td style={S.td}>
                           <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 100, borderColor: (data.debts||[]).some(d=>d.id===row._catId) ? C.red : C.border }}
@@ -1751,7 +1851,20 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
                   </div>
                 </div>
-                <span style={{ fontFamily: "monospace", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, color: t.type === "income" ? C.green : C.text }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</span>
+                {editAmtId === t.id ? (
+                  <input autoFocus type="number" step="0.01" min="0" value={editAmtVal}
+                    style={{ ...S.inpSm, width: 88, padding: "4px 6px", fontSize: 13, flexShrink: 0 }}
+                    onChange={e => setEditAmtVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { const v = parseFloat(editAmtVal); if (v > 0) updTxAmt(t.id, v); setEditAmtId(null); } if (e.key === "Escape") setEditAmtId(null); }}
+                    onBlur={() => { const v = parseFloat(editAmtVal); if (v > 0 && v !== t.amount) updTxAmt(t.id, v); setEditAmtId(null); }} />
+                ) : (
+                  <span
+                    style={{ fontFamily: "monospace", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, color: t.type === "income" ? C.green : C.text, cursor: "pointer", borderBottom: "1px dashed #3A4A70" }}
+                    title="Tap to edit amount"
+                    onClick={() => { setEditAmtId(t.id); setEditAmtVal(String(t.amount)); }}>
+                    {t.type === "income" ? "+" : ""}{fmt(t.amount)}
+                  </span>
+                )}
                 <button className="del-btn" style={{ ...S.delBtn, flexShrink: 0, fontSize: 16 }} onClick={() => delTx(t.id)}>✕</button>
               </div>
             ))}
