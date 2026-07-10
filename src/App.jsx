@@ -12,46 +12,83 @@ const DEFAULT_CATEGORIES = [
   { id: "insurance", name: "Insurance", type: "fixed", budget: 0 },
   { id: "phone", name: "Phone", type: "fixed", budget: 0 },
   { id: "subscriptions", name: "Subscriptions", type: "fixed", budget: 0 },
+  { id: "taxes", name: "Taxes & Fees", type: "fixed", budget: 0 },
   { id: "groceries", name: "Groceries", type: "variable", budget: 0 },
   { id: "dining", name: "Dining Out", type: "variable", budget: 0 },
   { id: "gas", name: "Gas", type: "variable", budget: 0 },
   { id: "shopping", name: "Shopping", type: "variable", budget: 0 },
+  { id: "video_games", name: "Video Games", type: "variable", budget: 0 },
   { id: "leisure", name: "Leisure", type: "variable", budget: 0 },
   { id: "personal", name: "Personal Care", type: "variable", budget: 0 },
+  { id: "auto", name: "Auto & Transport", type: "variable", budget: 0 },
+  { id: "medical", name: "Medical", type: "variable", budget: 0 },
+  { id: "pet", name: "Pet", type: "variable", budget: 0 },
+  { id: "donations", name: "Donations", type: "variable", budget: 0 },
+  { id: "transfers", name: "Transfers", type: "variable", budget: 0 },
+  { id: "trading", name: "Trading", type: "variable", budget: 0 },
+  { id: "cash", name: "Cash / ATM", type: "variable", budget: 0 },
   { id: "misc", name: "Misc", type: "variable", budget: 0 },
 ];
 
 const DEFAULT_RULES = [
   { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
-  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,steamgames,doordash,grubhub", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya", categoryId: "dining" },
-  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe", categoryId: "shopping" },
-  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur", categoryId: "insurance" },
-  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness", categoryId: "leisure" },
-  { id: "r10", keywords: "capital one,venmo,ally,car payment,loan payment,mobile pmt", categoryId: "misc" },
-  { id: "r11", keywords: "grape ape,vape,smoke,tobacco,cigarette", categoryId: "personal" },
+  // r3: subscriptions only — DashPass specifically, NOT generic doordash (those are dining)
+  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock,kindle", categoryId: "subscriptions" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,scibellis,scibelli,aroma joe,mocha joe,lox stock,bagels,cinepolis", categoryId: "dining" },
+  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pilot,global montell,jiffy mart", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers,burton,berkshire e comm", categoryId: "shopping" },
+  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur,allianz", categoryId: "insurance" },
+  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness,stubhub,ticketmaster,tm *hey,wyckoff country", categoryId: "leisure" },
+  // r10: transfers — credit card payments, savings transfers, peer-to-peer
+  { id: "r10", keywords: "capital one,venmo,mobile pmt,loan payment,car payment,apple cash", categoryId: "transfers" },
+  { id: "r11", keywords: "grape ape,vape,tobacco,cigarette,smoking ape,revitin", categoryId: "personal" },
   { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
-  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket", categoryId: "leisure" },
-  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "misc" },
-  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube", categoryId: "misc" },
-  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms", categoryId: "groceries" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,lift ticket,bousquet,berkshire east,colorado ski,mt snow,fabian mt,ski", categoryId: "leisure" },
+  // r14: ATM and cash withdrawals
+  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "cash" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline,excel tire,e-z*pass,ezpass,ez pass,violations,parking,meter park", categoryId: "auto" },
+  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms,sunnys convenience", categoryId: "groceries" },
   { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
   { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
+  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store,microsoft*stor,riot*,riot games", categoryId: "video_games" },
+  { id: "r20", keywords: "labcorp,urgent care,hospital,clinic,dentist,walgreens,cvs,rite aid", categoryId: "medical" },
+  { id: "r21", keywords: "vca animal,petco,petsmart,pet supplies,animal hospital", categoryId: "pet" },
+  { id: "r22", keywords: "kelley & ryan,excise tax,tax collector,tax payment,dmv,southwick, town,town of southwick,e-z*pass mta,violations mta", categoryId: "taxes" },
+  // r23: trading/investing
+  { id: "r23", keywords: "kalshi,robinhood", categoryId: "trading" },
+  // r24: ally car loan → auto
+  { id: "r24", keywords: "ally", categoryId: "auto" },
+  // r25: donations
+  { id: "r25", keywords: "limitless foundation", categoryId: "donations" },
 ];
 
 const ACHIEVEMENTS = [
+  // Setup
   { id: "first_income", title: "Income Set", desc: "Added your first income source" },
   { id: "first_tx", title: "First Log", desc: "Logged your first transaction manually" },
   { id: "csv_import", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
-  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
   { id: "all_budgets", title: "Budget Ready", desc: "Set budgets for all spending categories" },
-  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
-  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  // Volume
+  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
+  { id: "tx_200", title: "Data Machine", desc: "Logged 200+ transactions" },
+  // Savings rate
   { id: "save_20pct", title: "20% Club", desc: "Saved 20%+ of income in a month" },
   { id: "save_30pct", title: "30% Club", desc: "Saved 30%+ of income in a month" },
+  { id: "stack_month", title: "Stack Month", desc: "Net positive $500+ in a single month" },
+  // Budget discipline
+  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
+  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  { id: "half_year", title: "Half Year", desc: "Under budget 6 months in a row" },
+  { id: "all_in", title: "All In", desc: "Every category under budget in the same month" },
+  // Category discipline
+  { id: "clean_sheet", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
+  { id: "home_chef", title: "Home Chef", desc: "Dining Out under budget for a full month" },
+  { id: "controlled_player", title: "Controlled Player", desc: "Video Games under budget for a full month" },
+  { id: "going_digital", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
+  { id: "budget_nerd", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
+  // Goals & savings
   { id: "first_goal", title: "Goal Setter", desc: "Created your first savings goal" },
   { id: "first_deposit", title: "First Deposit", desc: "Made your first savings deposit" },
   { id: "goal_25", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
@@ -59,7 +96,12 @@ const ACHIEVEMENTS = [
   { id: "goal_100", title: "Goal Crusher", desc: "Fully funded a savings goal" },
   { id: "goals_3", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
   { id: "emergency_fund", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
+  // Debt
   { id: "first_debt", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
+  { id: "debt_zero", title: "Debt Slayer", desc: "Paid off a debt completely" },
+  // Character
+  { id: "giving_back", title: "Giving Back", desc: "Made a donation" },
+  { id: "trader", title: "In the Market", desc: "Made a trading or investing transaction" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────
@@ -75,7 +117,7 @@ const shiftMonthStr = (m, d) => { const [y, mo] = m.split("-").map(Number); cons
 const last6Months = (m) => Array.from({ length: 6 }, (_, i) => shiftMonthStr(m, -(5 - i)));
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null };
 }
 
 function getMonthlyIncome(incomes) {
@@ -115,7 +157,7 @@ function autoCategory(desc, rules, categories) {
 function analyzeFinances(data, month) {
   const tips = [];
   const income = getMonthlyIncome(data.incomes);
-  const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income");
+  const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income" && !t.isDebtPayment);
   const spent = txs.reduce((s, t) => s + t.amount, 0);
   const cSpend = {};
   data.categories.forEach(c => { cSpend[c.id] = 0; });
@@ -172,9 +214,11 @@ function checkAchievements(data) {
 
   if (data.incomes.length > 0) unlock("first_income");
 
-  const manualTxs = (data.transactions || []).filter(t => !t.fromRecurring && !t.isSavingsDeposit);
+  const allTxs = data.transactions || [];
+  const manualTxs = allTxs.filter(t => !t.fromRecurring && !t.isSavingsDeposit);
   if (manualTxs.length > 0) unlock("first_tx");
   if (manualTxs.length >= 50) unlock("tx_50");
+  if (manualTxs.length >= 200) unlock("tx_200");
 
   if (data.csvImported) unlock("csv_import");
 
@@ -182,7 +226,7 @@ function checkAchievements(data) {
   if (spendCats.length > 0 && spendCats.every(c => c.budget > 0)) unlock("all_budgets");
 
   if ((data.savings || []).length > 0) unlock("first_goal");
-  if ((data.transactions || []).some(t => t.isSavingsDeposit)) unlock("first_deposit");
+  if (allTxs.some(t => t.isSavingsDeposit)) unlock("first_deposit");
 
   if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.25)) unlock("goal_25");
   if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.5)) unlock("goal_50");
@@ -191,29 +235,66 @@ function checkAchievements(data) {
   if (completedGoals.length >= 3) unlock("goals_3");
 
   if ((data.debts || []).length > 0) unlock("first_debt");
+  if ((data.debts || []).some(d => d.balance === 0)) unlock("debt_zero");
+
+  if (allTxs.some(t => t.categoryId === "donations")) unlock("giving_back");
+  if (allTxs.some(t => t.categoryId === "trading")) unlock("trader");
 
   const income = getMonthlyIncome(data.incomes);
   const totalSaved = (data.savings || []).reduce((s, g) => s + g.saved, 0);
   if (income > 0 && totalSaved >= income * 3) unlock("emergency_fund");
 
-  const months = [...new Set((data.transactions || []).map(t => monthKey(t.date)))].filter(Boolean).sort();
+  const months = [...new Set(allTxs.map(t => monthKey(t.date)))].filter(Boolean).sort();
   const totalBudget = (data.categories || []).reduce((s, c) => s + c.budget, 0);
+  const catMap = new Map((data.categories || []).map(c => [c.id, c]));
   let streak = 0;
+
   months.forEach(m => {
-    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m && t.type !== "income");
+    const txs = allTxs.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const spent = txs.reduce((s, t) => s + t.amount, 0);
+
+    // Per-category spend this month
+    const cSpend = {};
+    txs.forEach(t => { cSpend[t.categoryId] = (cSpend[t.categoryId] || 0) + t.amount; });
+
     if (income > 0) {
-      const savedPct = (income - spent) / income;
+      const net = income - spent;
+      const savedPct = net / income;
       if (savedPct >= 0.2) unlock("save_20pct");
       if (savedPct >= 0.3) unlock("save_30pct");
+      if (net >= 500) unlock("stack_month");
     }
+
     if (totalBudget > 0 && spent <= totalBudget) {
       unlock("budget_month");
       streak++;
       if (streak >= 3) unlock("budget_streak");
+      if (streak >= 6) unlock("half_year");
     } else {
       streak = 0;
     }
+
+    // All individual categories under budget
+    const budgetedCats = (data.categories || []).filter(c => c.budget > 0);
+    if (budgetedCats.length >= 3 && budgetedCats.every(c => (cSpend[c.id] || 0) <= c.budget)) unlock("all_in");
+
+    // Clean Sheet: zero Misc spend
+    if (!(cSpend["misc"] > 0)) unlock("clean_sheet");
+
+    // Dining under budget
+    const diningCat = catMap.get("dining");
+    if (diningCat && diningCat.budget > 0 && (cSpend["dining"] || 0) <= diningCat.budget) unlock("home_chef");
+
+    // Video Games under budget
+    const vgCat = catMap.get("video_games");
+    if (vgCat && vgCat.budget > 0 && (cSpend["video_games"] || 0) <= vgCat.budget) unlock("controlled_player");
+
+    // No cash/ATM withdrawals
+    if (!(cSpend["cash"] > 0)) unlock("going_digital");
+
+    // 10+ distinct categories used
+    const usedCats = new Set(txs.map(t => t.categoryId));
+    if (usedCats.size >= 10) unlock("budget_nerd");
   });
 
   return newIds;
@@ -250,17 +331,17 @@ const S = {
   navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border },
-  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border },
+  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
   inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
   inpSm: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", width: 105 },
   sel: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 110 },
-  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
-  btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
-  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" },
-  btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
+  btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s, transform 0.12s" },
+  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s, color 0.15s" },
+  btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
   tbl: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: { textAlign: "left", padding: "8px 12px", borderBottom: "1px solid " + C.border, color: C.textDim, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" },
   td: { padding: "10px 12px", borderBottom: "1px solid " + C.border, color: C.textMid },
@@ -271,7 +352,7 @@ const S = {
   overB: { display: "inline-block", background: C.redDim, color: C.red, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
   underB: { display: "inline-block", background: C.greenDim, color: C.green, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
   empty: { color: C.textDim, fontSize: 13, padding: "20px 0", textAlign: "center" },
-  delBtn: { background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 15, padding: "2px 6px" },
+  delBtn: { background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 15, padding: "2px 6px", transition: "color 0.15s, transform 0.12s" },
   pbFloat: { position: "fixed", bottom: 72, right: 16, zIndex: 200 },
   pbBtn: { width: 52, height: 52, borderRadius: "50%", background: C.greenDim, border: "2px solid " + C.green, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 24px rgba(34,197,94,0.25)", transition: "transform 0.15s" },
   pbPanel: { position: "fixed", bottom: 134, right: 12, width: 320, maxWidth: "calc(100vw - 24px)", maxHeight: "65vh", background: C.surface, border: "1px solid " + C.border, borderRadius: 16, boxShadow: "0 8px 40px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", zIndex: 201 },
@@ -283,6 +364,42 @@ const S = {
   pbQBtn: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 16, padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
   tipCard: (type) => ({ padding: "10px 14px", borderRadius: 8, fontSize: 13, lineHeight: 1.5, background: type === "good" ? C.greenDim + "44" : type === "warning" || type === "over" ? "#78350F44" : type === "danger" ? C.redDim + "44" : C.blueDim + "44", borderLeft: "3px solid " + (type === "good" ? C.green : type === "warning" || type === "over" ? C.amber : type === "danger" ? C.red : C.blue), marginBottom: 8, color: C.text }),
 };
+
+// ── Global animations injected once ──────────────────────
+const GLOBAL_CSS = `
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, -18px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, -12px); }
+}
+@keyframes barGrow {
+  from { width: 0% !important; }
+}
+.pb-btn:hover { transform: scale(1.08); }
+.pb-btn:active { transform: scale(0.96); }
+.app-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.app-card:hover { border-color: #3A3A3A !important; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+.app-btn { transition: opacity 0.15s, transform 0.12s; }
+.app-btn:hover { opacity: 0.88; }
+.app-btn:active { transform: scale(0.97); }
+.app-btn-ghost { transition: background 0.15s, color 0.15s; }
+.app-btn-ghost:hover { background: #2A2A2A !important; color: #C8D5E0 !important; }
+.nav-item { transition: color 0.18s; }
+.nav-dot { transition: opacity 0.25s, transform 0.25s; }
+.del-btn { transition: color 0.15s, transform 0.12s; }
+.del-btn:hover { color: #EF4444 !important; transform: scale(1.15); }
+`;
+
+function GlobalStyles() {
+  return <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />;
+}
 
 // ── PaperBoy SVG ──────────────────────────────────────────
 function PaperBoySVG({ size = 40 }) {
@@ -306,16 +423,27 @@ function PaperBoySVG({ size = 40 }) {
 
 // ── Achievement Toast ─────────────────────────────────────
 function AchievementToast({ achievement, onDone }) {
+  const [leaving, setLeaving] = useState(false);
+
   useEffect(() => {
-    const t = setTimeout(onDone, 4000);
-    return () => clearTimeout(t);
+    const dismiss = setTimeout(() => setLeaving(true), 3400);
+    const remove = setTimeout(onDone, 3900);
+    return () => { clearTimeout(dismiss); clearTimeout(remove); };
   }, [onDone]);
+
   return (
-    <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: C.greenDim, border: "1px solid " + C.green, borderRadius: 12, padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(34,197,94,0.3)", maxWidth: 320, animation: "none" }}>
+    <div style={{
+      position: "fixed", top: 16, left: "50%", zIndex: 999,
+      background: C.greenDim, border: "1px solid " + C.green,
+      borderRadius: 12, padding: "12px 18px",
+      display: "flex", alignItems: "center", gap: 10,
+      boxShadow: "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
+      animation: leaving ? "toastOut 0.45s ease forwards" : "toastIn 0.3s ease both",
+    }}>
       <span style={{ fontSize: 22 }}>🏆</span>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>{achievement.title}</div>
-        <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>{achievement.desc}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>Achievement Unlocked · {achievement.title}</div>
+        <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{achievement.desc}</div>
       </div>
     </div>
   );
@@ -369,6 +497,22 @@ export default function BudgetManager() {
         const r = await window.storage.get(STORAGE_KEY);
         if (r?.value) {
           const parsed = { ...getDefaultState(), ...JSON.parse(r.value) };
+
+          // Migrate: add missing default categories
+          const storedCatIds = new Set(parsed.categories.map(c => c.id));
+          const missingCats = DEFAULT_CATEGORIES.filter(c => !storedCatIds.has(c.id));
+          if (missingCats.length > 0) parsed.categories = [...parsed.categories, ...missingCats];
+
+          // Migrate: update existing default rule keywords + add missing rules
+          const storedRuleMap = new Map(parsed.rules.map(rule => [rule.id, rule]));
+          const updatedDefaultRules = DEFAULT_RULES.map(dr => {
+            const stored = storedRuleMap.get(dr.id);
+            return stored ? { ...stored, keywords: dr.keywords, categoryId: dr.categoryId } : dr;
+          });
+          const defaultRuleIds = new Set(DEFAULT_RULES.map(rule => rule.id));
+          const userRules = parsed.rules.filter(rule => !defaultRuleIds.has(rule.id));
+          parsed.rules = [...updatedDefaultRules, ...userRules];
+
           const withRecurring = generateRecurring(parsed);
           setData(withRecurring);
           if (withRecurring !== parsed) {
@@ -386,7 +530,7 @@ export default function BudgetManager() {
   const catSpend = useMemo(() => {
     if (!data) return {};
     const t = {}; data.categories.forEach(c => { t[c.id] = 0; });
-    monthTx.filter(tx => tx.type !== "income").forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
+    monthTx.filter(tx => tx.type !== "income" && !tx.isDebtPayment).forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
     return t;
   }, [data, monthTx]);
   const totalSpent = useMemo(() => Object.values(catSpend).reduce((s, v) => s + v, 0), [catSpend]);
@@ -402,8 +546,13 @@ export default function BudgetManager() {
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
-  const addTxBatch = (txs, isCSV = false) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}) });
+  const addTxBatch = (txs, isCSV = false, extra = {}) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}), ...extra });
+  const saveCheckingBalance = (cb) => save({ ...data, checkingBalance: cb });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
+  const updTxCat = (id, catId) => {
+    const cat = data.categories.find(c => c.id === catId);
+    save({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, categoryId: catId, categoryName: cat?.name || catId } : t) });
+  };
   const addInc = (i) => save({ ...data, incomes: [...data.incomes, { ...i, id: uid() }] });
   const delInc = (id) => save({ ...data, incomes: data.incomes.filter(i => i.id !== id) });
   const updCat = (id, u) => save({ ...data, categories: data.categories.map(c => c.id === id ? { ...c, ...u } : c) });
@@ -412,6 +561,9 @@ export default function BudgetManager() {
   const addSav = (g) => save({ ...data, savings: [...data.savings, { ...g, id: uid() }] });
   const updSav = (id, u) => save({ ...data, savings: data.savings.map(g => g.id === id ? { ...g, ...u } : g) });
   const delSav = (id) => save({ ...data, savings: data.savings.filter(g => g.id !== id) });
+  const addSavAcct = (a) => save({ ...data, savingsAccounts: [...(data.savingsAccounts || []), { ...a, id: uid(), updatedAt: todayStr() }] });
+  const updSavAcct = (id, u) => save({ ...data, savingsAccounts: (data.savingsAccounts || []).map(a => a.id === id ? { ...a, ...u, updatedAt: todayStr() } : a) });
+  const delSavAcct = (id) => save({ ...data, savingsAccounts: (data.savingsAccounts || []).filter(a => a.id !== id) });
   // Savings deposit also logs a transaction
   const depositSav = (goal, amount) => {
     const tx = { id: uid(), date: todayStr(), amount, categoryId: "savings_deposit", categoryName: "Savings Deposit", description: `Deposit: ${goal.name}`, isSavingsDeposit: true };
@@ -420,6 +572,21 @@ export default function BudgetManager() {
   const addDbt = (d) => save({ ...data, debts: [...data.debts, { ...d, id: uid() }] });
   const updDbt = (id, u) => save({ ...data, debts: data.debts.map(d => d.id === id ? { ...d, ...u } : d) });
   const delDbt = (id) => save({ ...data, debts: data.debts.filter(d => d.id !== id) });
+  // Log a debt payment transaction AND reduce the debt balance
+  const payDebt = (debt, amount, date, description) => {
+    const tx = { id: uid(), date: date || todayStr(), amount, categoryId: "debt_payment", categoryName: `Payment: ${debt.name}`, description: description || `Payment: ${debt.name}`, isDebtPayment: true, debtId: debt.id };
+    const newBalance = Math.max(0, debt.balance - amount);
+    save({ ...data, debts: data.debts.map(d => d.id === debt.id ? { ...d, balance: newBalance } : d), transactions: [...data.transactions, tx] });
+  };
+  // Apply debt payments from a batch (used by CSV import)
+  const applyDebtPayments = (payments) => {
+    let newDebts = [...data.debts];
+    const txs = payments.map(({ debt, amount, date, description }) => {
+      newDebts = newDebts.map(d => d.id === debt.id ? { ...d, balance: Math.max(0, d.balance - amount) } : d);
+      return { id: uid(), date: date || todayStr(), amount, categoryId: "debt_payment", categoryName: `Payment: ${debt.name}`, description: description || `Payment: ${debt.name}`, isDebtPayment: true, debtId: debt.id };
+    });
+    save({ ...data, debts: newDebts, transactions: [...data.transactions, ...txs] });
+  };
   const addRule = (r) => save({ ...data, rules: [...(data.rules || []), { ...r, id: uid() }] });
   const delRule = (id) => save({ ...data, rules: (data.rules || []).filter(r => r.id !== id) });
   const addRecurring = (r) => save({ ...data, recurring: [...(data.recurring || []), { ...r, id: uid() }] });
@@ -436,22 +603,23 @@ export default function BudgetManager() {
 
   return (
     <div style={S.root}>
+      <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={S.wrap}>
         <div style={S.hdr}>
           <h1 style={S.h1}>PaperBoy Central</h1>
           <div style={S.monthNav}>
-            <button style={S.mBtn} onClick={() => shiftMonth(-1)}>&#8249;</button>
+            <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(-1)}>&#8249;</button>
             <span style={S.mLbl}>{monthLabelLong(month)}</span>
-            <button style={S.mBtn} onClick={() => shiftMonth(1)}>&#8250;</button>
+            <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(1)}>&#8250;</button>
           </div>
         </div>
 
-        <div style={S.page}>
+        <div key={tab} style={{ ...S.page, animation: "fadeUp 0.16s ease both" }}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
-          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} />}
+          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} addSavAcct={addSavAcct} updSavAcct={updSavAcct} delSavAcct={delSavAcct} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
         </div>
       </div>
@@ -459,9 +627,10 @@ export default function BudgetManager() {
       {/* Bottom nav */}
       <nav style={S.bottomNav}>
         {NAV.map((n, i) => (
-          <button key={n.label} style={S.navItem(i === tab)} onClick={() => setTab(i)}>
+          <button key={n.label} className="nav-item" style={S.navItem(i === tab)} onClick={() => setTab(i)}>
             {n.icon(i === tab)}
             <span style={S.navLabel(i === tab)}>{n.label}</span>
+            <span className="nav-dot" style={{ width: 3, height: 3, borderRadius: "50%", background: C.green, opacity: i === tab ? 1 : 0, transform: i === tab ? "scale(1)" : "scale(0)", marginTop: 1 }} />
           </button>
         ))}
       </nav>
@@ -747,6 +916,15 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const savingsDeposits = monthTx.filter(t => t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
   const netCashFlow = totalIncome - totalSpent - savingsDeposits;
 
+  // Checking balance: last known balance from CSV + all transactions after that date
+  const cb = data.checkingBalance;
+  const estimatedBalance = cb ? (() => {
+    const afterTxs = data.transactions.filter(t => t.date > cb.asOf);
+    const incomeAfter = afterTxs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const expenseAfter = afterTxs.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+    return cb.amount + incomeAfter - expenseAfter;
+  })() : null;
+
   // Spending forecast — only meaningful for the current month
   const isCurrentMonth = month === curMonth();
   const today = new Date();
@@ -758,6 +936,25 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
   return (
     <div>
+      {estimatedBalance !== null && (
+        <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div>
+              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}>{fmt(estimatedBalance)}</div>
+              <div style={S.statL}>Checking Balance (Est.)</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: C.textDim }}>Snapshot: {fmt(cb.amount)}</div>
+              <div style={{ fontSize: 10, color: C.textDim }}>as of {cb.asOf}</div>
+            </div>
+          </div>
+          {data.transactions.some(t => t.date > cb.asOf) && (
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>
+              Adjusted for {data.transactions.filter(t => t.date > cb.asOf).length} transaction{data.transactions.filter(t => t.date > cb.asOf).length !== 1 ? "s" : ""} logged after snapshot date
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
         <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
@@ -862,11 +1059,13 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 // ════════════════════════════════════════════════════════
 //  TRANSACTIONS + CSV + RECURRING
 // ════════════════════════════════════════════════════════
-function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, delRecurring }) {
+function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRecurring, delRecurring, payDebt, applyDebtPayments, saveCheckingBalance }) {
   const [date, setDate] = useState(todayStr());
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState(data.categories[0]?.id || "");
+  const [debtId, setDebtId] = useState("__none__");
   const [desc, setDesc] = useState("");
+  const [editCatId, setEditCatId] = useState(null);
   const [csvMode, setCsvMode] = useState(false);
   const [recurringMode, setRecurringMode] = useState(false);
   const [csvData, setCsvData] = useState(null);
@@ -874,6 +1073,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const [csvRows, setCsvRows] = useState([]);
   const [csvDepositRows, setCsvDepositRows] = useState([]);
   const [depositTypes, setDepositTypes] = useState({});
+  const [csvLastBalance, setCsvLastBalance] = useState(null);
   const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -893,10 +1093,15 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
   const handleAdd = () => {
     const a = parseFloat(amount);
-    if (!a || a <= 0 || !catId) return;
-    const cat = data.categories.find(c => c.id === catId);
-    addTx({ date, amount: a, categoryId: catId, categoryName: cat?.name || catId, description: desc || cat?.name || "" });
-    setAmount(""); setDesc("");
+    if (!a || a <= 0) return;
+    const debt = debtId !== "__none__" ? (data.debts || []).find(d => d.id === debtId) : null;
+    if (debt) {
+      payDebt(debt, a, date, desc || `Payment: ${debt.name}`);
+    } else {
+      const cat = data.categories.find(c => c.id === catId);
+      addTx({ date, amount: a, categoryId: catId, categoryName: cat?.name || catId, description: desc || cat?.name || "" });
+    }
+    setAmount(""); setDesc(""); setDebtId("__none__");
   };
 
   const handleCSV = (file) => {
@@ -927,6 +1132,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         const dateCol = colIdx(["date", "time"]) || cols[0];
         const amtCol = colIdx(["amount", "total", "debit", "credit", "sum"]) || cols[1];
         const descCol = colIdx(["desc", "memo", "note", "narr", "detail", "merchant", "payee"]) || cols[2];
+        const balCol = colIdx(["running bal", "balance", "bal.", "ending bal"]);
 
         const map = { date: dateCol, amount: amtCol, desc: descCol };
 
@@ -958,13 +1164,34 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
           .map((row, i) => ({ ...row, _depositId: i }));
 
-        // Auto-detect payroll rows
+        // Auto-detect payroll rows and flag bounced returns/refunds
         const initTypes = {};
         depositRows.forEach(row => {
           const desc = String(row[descCol] || "").toLowerCase();
-          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep/.test(desc);
-          initTypes[row._depositId] = isPayroll ? "income" : "extra";
+          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep|ondrick natural/.test(desc);
+          const isBounce = /return of posted check|returned check|returned item/.test(desc);
+          // Only treat as a refund if it looks like a merchant refund (has a merchant-style name before "refund")
+          // Exclude financial/tax transfers that happen to contain the word "refund"
+          const isRefund = /refund/.test(desc) && !/fbo refund|tax refund|intuit payments|transfer.*refund|refund proc/.test(desc);
+          if (isBounce) {
+            initTypes[row._depositId] = "bounce";
+          } else if (isRefund) {
+            initTypes[row._depositId] = "refund";
+          } else {
+            initTypes[row._depositId] = isPayroll ? "income" : "extra";
+          }
         });
+
+        // Capture last running balance from the final row in the CSV
+        const lastRow = allParsed[allParsed.length - 1];
+        if (lastRow && balCol) {
+          const rawBal = String(lastRow[balCol] || "").replace(/[^0-9.-]/g, "");
+          const rawDate = String(lastRow[dateCol] || "").trim();
+          const bal = parseFloat(rawBal);
+          if (!isNaN(bal)) {
+            setCsvLastBalance({ amount: bal, rawDate });
+          }
+        }
 
         if (expenseRows.length > 0 || depositRows.length > 0) {
           const syntheticResults = { meta: { fields: cols }, data: expenseRows };
@@ -989,22 +1216,43 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const importCSV = () => {
     if (!csvData || !csvMap.date || !csvMap.amount) return;
     const txs = [];
+    const debtPayments = [];
     csvRows.forEach(row => {
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
-      const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
-      txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+      const debt = (data.debts || []).find(d => d.id === row._catId);
+      if (debt) {
+        debtPayments.push({ debt, amount: amt, date: parseRowDate(row), description: row[csvMap.desc] || `Payment: ${debt.name}` });
+      } else {
+        const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
+        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+      }
     });
     csvDepositRows.forEach(row => {
       const dtype = depositTypes[row._depositId];
-      if (!dtype || dtype === "skip") return;
+      if (!dtype || dtype === "skip" || dtype === "bounce" || dtype === "refund") return;
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
       const isExtra = dtype === "extra";
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: isExtra ? "Extra Income" : "Income", description: row[csvMap.desc] || "Deposit", type: "income", incomeKind: dtype });
     });
-    if (txs.length > 0) addTxBatch(txs, true);
-    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
+    // Parse the last balance date using same MM/DD/YYYY logic
+    let balanceAsOf = null;
+    if (csvLastBalance) {
+      const mmddyyyy = csvLastBalance.rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      balanceAsOf = mmddyyyy
+        ? `${mmddyyyy[3]}-${mmddyyyy[1].padStart(2,"0")}-${mmddyyyy[2].padStart(2,"0")}`
+        : csvLastBalance.rawDate;
+    }
+
+    const newCheckingBalance = csvLastBalance
+      ? { amount: csvLastBalance.amount, asOf: balanceAsOf }
+      : data.checkingBalance;
+
+    if (txs.length > 0) addTxBatch(txs, true, newCheckingBalance ? { checkingBalance: newCheckingBalance } : {});
+    else if (newCheckingBalance) saveCheckingBalance(newCheckingBalance);
+    if (debtPayments.length > 0) applyDebtPayments(debtPayments);
+    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); setCsvMode(false);
   };
 
   const handleAddRecurring = () => {
@@ -1043,8 +1291,17 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
             <input type="date" style={S.inpSm} value={date} onChange={e => setDate(e.target.value)} />
             <input type="number" style={{ ...S.inpSm, width: 90 }} placeholder="$" value={amount} onChange={e => setAmount(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} step="0.01" min="0" />
             <input type="text" style={S.inp} placeholder="Description (auto-categorizes)" value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} />
-            <select style={S.sel} value={catId} onChange={e => setCatId(e.target.value)}>
-              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <select style={{ ...S.sel, borderColor: debtId !== "__none__" ? C.red : C.border }} value={debtId !== "__none__" ? debtId : catId} onChange={e => {
+              const v = e.target.value;
+              const isDebt = (data.debts || []).some(d => d.id === v);
+              if (isDebt) { setDebtId(v); } else { setDebtId("__none__"); setCatId(v); }
+            }}>
+              {(data.debts || []).length > 0 && <optgroup label="Debt Payment">
+                {(data.debts || []).map(d => <option key={d.id} value={d.id}>💳 Pay: {d.name}</option>)}
+              </optgroup>}
+              <optgroup label="Expense Category">
+                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
             </select>
             <button style={S.btn} onClick={handleAdd}>Add</button>
           </div>
@@ -1112,23 +1369,41 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 6 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
-                    <div style={{ overflowX: "auto", maxHeight: 160, overflowY: "auto" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
+                    {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
+                      <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
+                        ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
+                      </div>
+                    )}
+                    {csvDepositRows.some(r => depositTypes[r._depositId] === "refund") && (
+                      <div style={{ fontSize: 11, color: C.textMid, background: C.surfaceHigh, borderRadius: 6, padding: "6px 10px", marginBottom: 6 }}>
+                        ↩ Merchant refunds auto-marked as Skip — they cancel an existing expense, not real income. Tax refunds and financial transfers are imported as Extra Income. Change any row manually if needed.
+                      </div>
+                    )}
+                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto" }}>
                       <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
-                        {csvDepositRows.map(row => (
-                          <tr key={row._depositId}>
-                            <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
-                            <td style={S.td}>{row[csvMap.desc]}</td>
-                            <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
-                            <td style={S.td}>
-                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "extra"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
-                                <option value="income">Income</option>
-                                <option value="extra">Extra Income</option>
-                                <option value="skip">Skip</option>
-                              </select>
-                            </td>
-                          </tr>
-                        ))}
+                        {csvDepositRows.map(row => {
+                          const dtype = depositTypes[row._depositId] || "extra";
+                          const isBounce = dtype === "bounce";
+                          const isRefund = dtype === "refund";
+                          return (
+                            <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
+                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                              <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
+                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                              <td style={S.td}>
+                                <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px", borderColor: isBounce ? C.red : isRefund ? C.amber : C.border }}
+                                  value={dtype} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
+                                  <option value="income">Income (Paycheck)</option>
+                                  <option value="extra">Extra Income</option>
+                                  <option value="refund">Refund / Return</option>
+                                  <option value="bounce">⚠️ Bounced Pmt Return</option>
+                                  <option value="skip">Skip</option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody></table>
                     </div>
                   </div>
@@ -1141,9 +1416,14 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
                         <td style={{ ...S.td, fontSize: 11 }}>{csvMap.desc ? row[csvMap.desc] || "" : ""}</td>
                         <td style={S.td}>
-                          <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 90 }} value={row._catId}
-                            onChange={e => { const updated = [...csvRows]; updated[i] = { ...row, _catId: e.target.value, _matched: false }; setCsvRows(updated); }}>
-                            {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 100, borderColor: (data.debts||[]).some(d=>d.id===row._catId) ? C.red : C.border }}
+                            value={row._catId} onChange={e => { const updated = [...csvRows]; updated[i] = { ...row, _catId: e.target.value, _matched: false }; setCsvRows(updated); }}>
+                            {(data.debts||[]).length > 0 && <optgroup label="Debt Payment">
+                              {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
+                            </optgroup>}
+                            <optgroup label="Expense">
+                              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </optgroup>
                           </select>
                         </td>
                       </tr>
@@ -1153,7 +1433,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
+                  <div style={{ fontSize: 11, color: C.textDim, alignSelf: "center" }}>{csvDepositRows.filter(r => ["bounce","refund","skip"].includes(depositTypes[r._depositId])).length} deposits skipped</div>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -1182,7 +1463,38 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => (
+              <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
+                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td>
+                <td style={S.td}>
+                  {t.description}
+                  {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
+                  {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
+                  {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt pmt</span>}
+                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}
+                  {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
+                </td>
+                <td style={S.td}>
+                  {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
+                    <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 6px" }}
+                      value={t.categoryId}
+                      onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
+                      onBlur={() => setEditCatId(null)}>
+                      {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  ) : (
+                    <span
+                      style={{ color: t.type === "income" ? "#5B8A72" : "#888", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #444" : "none" }}
+                      title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "Tap to change category" : undefined}
+                      onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
+                      {t.categoryName}
+                    </span>
+                  )}
+                </td>
+                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
+                <td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td>
+              </tr>
+            ))}
           </tbody></table></div>
         )}
       </div>
@@ -1290,7 +1602,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
 // ════════════════════════════════════════════════════════
 //  GOALS TAB
 // ════════════════════════════════════════════════════════
-function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome, achievements }) {
+function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome, achievements, addSavAcct, updSavAcct, delSavAcct }) {
   const [gName, setGName] = useState("");
   const [gTarget, setGTarget] = useState("");
   const [gDate, setGDate] = useState("");
@@ -1302,16 +1614,60 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
   const [simId, setSimId] = useState(null);
   const [simExtra, setSimExtra] = useState("");
   const [depositAmounts, setDepositAmounts] = useState({});
+  const [saName, setSaName] = useState("");
+  const [saInst, setSaInst] = useState("");
+  const [saBal, setSaBal] = useState("");
+  const [updateBals, setUpdateBals] = useState({});
 
   const handleAddGoal = () => { const t = parseFloat(gTarget); if (!gName || !t) return; addSav({ name: gName, target: t, targetDate: gDate || null, saved: 0 }); setGName(""); setGTarget(""); setGDate(""); };
   const handleAddDebt = () => { const b = parseFloat(dBal); if (!dName || !b) return; addDbt({ name: dName, balance: b, rate: parseFloat(dRate) || 0, minPayment: parseFloat(dMin) || 0, extraPayment: parseFloat(dExtra) || 0 }); setDName(""); setDBal(""); setDRate(""); setDMin(""); setDExtra(""); };
+  const handleAddSavAcct = () => { const b = parseFloat(saBal); if (!saName || isNaN(b)) return; addSavAcct({ name: saName, institution: saInst, balance: b }); setSaName(""); setSaInst(""); setSaBal(""); };
 
   const totalDebt = data.debts.reduce((s, d) => s + d.balance, 0);
   const totalSaved = data.savings.reduce((s, g) => s + g.saved, 0);
+  const savingsAccounts = data.savingsAccounts || [];
+  const totalSavingsAccts = savingsAccounts.reduce((s, a) => s + a.balance, 0);
 
   return (
     <div>
-      {/* Savings */}
+      {/* Savings Accounts */}
+      <div style={S.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={S.cTitle}>Savings Accounts</div>
+          <span style={{ fontSize: 12, color: C.green, fontFamily: "monospace" }}>Total: {fmt(totalSavingsAccts)}</span>
+        </div>
+        {savingsAccounts.length === 0 ? <div style={S.empty}>No savings accounts. Add your bank savings accounts to track their balances.</div> : (
+          <div style={{ marginBottom: 12 }}>
+            {savingsAccounts.map(a => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + C.border }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{a.name}</div>
+                  {a.institution && <div style={{ fontSize: 11, color: C.textDim }}>{a.institution}</div>}
+                  <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>Updated {a.updatedAt}</div>
+                </div>
+                <div style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: C.green }}>{fmt(a.balance)}</div>
+                <input type="number" style={{ ...S.inpSm, width: 90, padding: "4px 8px", fontSize: 12 }}
+                  placeholder="New bal" value={updateBals[a.id] || ""}
+                  onChange={e => setUpdateBals(prev => ({ ...prev, [a.id]: e.target.value }))} />
+                <button style={{ ...S.btn, padding: "4px 10px", fontSize: 12 }} onClick={() => {
+                  const v = parseFloat(updateBals[a.id]);
+                  if (!isNaN(v)) { updSavAcct(a.id, { balance: v }); setUpdateBals(prev => ({ ...prev, [a.id]: "" })); }
+                }}>Update</button>
+                <button style={S.delBtn} onClick={() => delSavAcct(a.id)}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ ...S.cTitle, marginTop: 6 }}>Add Account</div>
+        <div style={{ ...S.row, gap: 6 }}>
+          <input style={S.inp} placeholder="Account name (e.g. Emergency Fund)" value={saName} onChange={e => setSaName(e.target.value)} />
+          <input style={{ ...S.inpSm, width: 120 }} placeholder="Bank (optional)" value={saInst} onChange={e => setSaInst(e.target.value)} />
+          <input type="number" style={S.inpSm} placeholder="$ Balance" value={saBal} onChange={e => setSaBal(e.target.value)} min="0" />
+          <button style={S.btn} onClick={handleAddSavAcct}>Add</button>
+        </div>
+      </div>
+
+      {/* Savings Goals */}
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Savings Goals</div>
@@ -1463,7 +1819,7 @@ function TrendsTab({ data, month }) {
   const [compareB, setCompareB] = useState(month);
 
   const getMonthSpend = useCallback((m) => {
-    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income");
+    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const totals = {};
     data.categories.forEach(c => { totals[c.id] = 0; });
     txs.forEach(t => { totals[t.categoryId] = (totals[t.categoryId] || 0) + t.amount; });
