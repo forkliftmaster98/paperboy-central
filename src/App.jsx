@@ -14,6 +14,7 @@ const CAT_COLORS = {
   personal: "#D879C9", auto: "#5FA8F5", medical: "#E85D75", pet: "#C4A35A",
   donations: "#F2C14E", transfers: "#8A9BB8", trading: "#63D4A0", cash: "#A0AEC4", misc: "#7A8AA8",
 };
+const sortCats = (cats) => [...cats].sort((a, b) => a.name.localeCompare(b.name));
 const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
 
 const DEFAULT_CATEGORIES = [
@@ -406,6 +407,12 @@ const GLOBAL_CSS = `
 .page-anim > div > *:nth-child(7) { animation-delay: 180ms; }
 .page-anim > div > *:nth-child(n+8) { animation-delay: 210ms; }
 .anim-bar { animation: barGrow 0.55s ease both; }
+* { scrollbar-width: thin; scrollbar-color: #33426B #121A2C; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: #121A2C; border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: #33426B; border-radius: 8px; border: 2px solid #121A2C; }
+*::-webkit-scrollbar-thumb:hover { background: #4A5C8C; }
+*::-webkit-scrollbar-corner { background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .page-anim > div > *, .anim-bar { animation: none !important; }
 }
@@ -1397,7 +1404,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 {(data.debts || []).map(d => <option key={d.id} value={d.id}>💳 Pay: {d.name}</option>)}
               </optgroup>}
               <optgroup label="Expense Category">
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </optgroup>
             </select>
             <button style={S.btn} onClick={handleAdd}>Add</button>
@@ -1412,7 +1419,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
               <input type="number" style={{ ...S.inpSm, width: 72 }} placeholder="Due day" value={recDueDay} onChange={e => setRecDueDay(e.target.value)} min="1" max="31" />
               <select style={S.sel} value={recCat} onChange={e => setRecCat(e.target.value)}>
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRecurring}>Add</button>
             </div>
@@ -1477,7 +1484,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                         ↩ Merchant refunds auto-marked as Skip — they cancel an existing expense, not real income. Tax refunds and financial transfers are imported as Extra Income. Change any row manually if needed.
                       </div>
                     )}
-                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto" }}>
+                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto", paddingRight: 10 }}>
                       <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
                         {csvDepositRows.map(row => {
                           const dtype = depositTypes[row._depositId] || "extra";
@@ -1506,7 +1513,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   </div>
                 )}
                 <div style={{ fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 4 }}>② Expenses ({csvRows.length}) — auto-categorized, adjust any that look wrong:</div>
-                <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
+                <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto", paddingRight: 10 }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
                       <tr key={i}>
@@ -1520,7 +1527,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                               {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
                             </optgroup>}
                             <optgroup label="Expense">
-                              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </optgroup>
                           </select>
                         </td>
@@ -1545,7 +1552,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
         <input style={S.inp} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
         <select style={S.sel} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">All categories</option>
-          {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {search && (
           <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Search all months">
@@ -1578,7 +1585,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       value={t.categoryId}
                       onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
                       onBlur={() => setEditCatId(null)}>
-                      {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   ) : (
                     <span
@@ -1678,7 +1685,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRule}>Add Rule</button>
             </div>
