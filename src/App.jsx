@@ -1397,7 +1397,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
         debtPayments.push({ debt, amount: amt, date: parseRowDate(row), description: row[csvMap.desc] || `Payment: ${debt.name}` });
       } else {
         const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
-        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+        const desc = row[csvMap.desc] || cat.name || "";
+        const isRetry = /retry pymt/i.test(desc);
+        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: desc, ...(isRetry ? { isRetryCharge: true } : {}) });
       }
     });
     csvDepositRows.forEach(row => {
@@ -1635,40 +1637,43 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
-          <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Cat.</th><th style={{ ...S.th, textAlign: "right" }}>Amt</th><th style={{ ...S.th, width: 28 }}></th></tr></thead><tbody>
+          <div>
             {filtered.map(t => (
-              <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
-                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#7C8CAD", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
-                <td style={{ ...S.td, maxWidth: 0, width: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  <span title={t.description}>{t.description}</span>
-                  {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
-                  {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
-                  {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt</span>}
-                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: C.green, color: "#fff" }}>pay</span>}
-                  {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
-                </td>
-                <td style={{ ...S.td, maxWidth: 0, width: "25%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
-                  {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
-                    <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 4px", width: "100%" }}
-                      value={t.categoryId}
-                      onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
-                      onBlur={() => setEditCatId(null)}>
-                      {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  ) : (
-                    <span
-                      style={{ color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
-                      title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
-                      onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
-                      {t.categoryName}
-                    </span>
-                  )}
-                </td>
-                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
-                <td style={{ ...S.td, padding: "10px 6px" }}><button style={S.delBtn} onClick={() => delTx(t.id)}>✕</button></td>
-              </tr>
+              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 0", borderBottom: "1px solid " + C.border, background: t.type === "income" ? "rgba(46,204,113,0.06)" : "transparent" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 10, color: "#7C8CAD", flexShrink: 0 }}>{t.date.slice(5)}</span>
+                    <span style={{ fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.description}>{t.description}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
+                    {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
+                      <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }}
+                        value={t.categoryId}
+                        onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
+                        onBlur={() => setEditCatId(null)}>
+                        {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <span
+                        style={{ fontSize: 11, color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
+                        title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
+                        onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
+                        {t.categoryName}
+                      </span>
+                    )}
+                    {t.fromRecurring && <span style={S.underB}>auto</span>}
+                    {t.isSavingsDeposit && <span style={S.underB}>savings</span>}
+                    {t.isRetryCharge && <span style={{ ...S.overB, marginLeft: 0 }} title="Bank retried this payment after a prior attempt bounced — check for duplicates">retry</span>}
+                    {t.isDebtPayment && <span style={{ ...S.underB, background: "#7F1D1D", color: "#FCA5A5" }}>debt</span>}
+                    {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, background: C.green, color: "#fff" }}>pay</span>}
+                    {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
+                  </div>
+                </div>
+                <span style={{ fontFamily: "monospace", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, color: t.type === "income" ? C.green : C.text }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</span>
+                <button className="del-btn" style={{ ...S.delBtn, flexShrink: 0, fontSize: 16 }} onClick={() => delTx(t.id)}>✕</button>
+              </div>
             ))}
-          </tbody></table>
+          </div>
         )}
       </div>
     </div>
