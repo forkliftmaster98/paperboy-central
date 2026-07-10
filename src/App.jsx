@@ -1369,7 +1369,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 </div>
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
                     {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
                       <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
                         ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
@@ -1408,6 +1408,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </div>
                   </div>
                 )}
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 4 }}>② Expenses ({csvRows.length}) — auto-categorized, adjust any that look wrong:</div>
                 <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
@@ -1462,21 +1463,21 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
-          <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
+          <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Cat.</th><th style={{ ...S.th, textAlign: "right" }}>Amt</th><th style={{ ...S.th, width: 28 }}></th></tr></thead><tbody>
             {filtered.map(t => (
               <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
-                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td>
-                <td style={S.td}>
-                  {t.description}
+                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#888", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
+                <td style={{ ...S.td, maxWidth: 0, width: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span title={t.description}>{t.description}</span>
                   {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
                   {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
-                  {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt pmt</span>}
-                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}
+                  {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt</span>}
+                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>pay</span>}
                   {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
                 </td>
-                <td style={S.td}>
+                <td style={{ ...S.td, maxWidth: 0, width: "25%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
                   {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
-                    <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 6px" }}
+                    <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 4px", width: "100%" }}
                       value={t.categoryId}
                       onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
                       onBlur={() => setEditCatId(null)}>
@@ -1485,17 +1486,17 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   ) : (
                     <span
                       style={{ color: t.type === "income" ? "#5B8A72" : "#888", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #444" : "none" }}
-                      title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "Tap to change category" : undefined}
+                      title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                       onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
                       {t.categoryName}
                     </span>
                   )}
                 </td>
-                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
-                <td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td>
+                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
+                <td style={{ ...S.td, padding: "10px 6px" }}><button style={S.delBtn} onClick={() => delTx(t.id)}>✕</button></td>
               </tr>
             ))}
-          </tbody></table></div>
+          </tbody></table>
         )}
       </div>
     </div>
