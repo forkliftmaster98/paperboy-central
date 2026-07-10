@@ -1441,7 +1441,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
   const [searchAll, setSearchAll] = useState(false);
   // Filtered transactions — when searching, optionally span all months
   const filtered = useMemo(() => {
-    const pool = (searchAll && search) ? [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)) : monthTx;
+    const pool = searchAll ? [...data.transactions].sort((a, b) => b.date.localeCompare(a.date)) : monthTx;
     return pool.filter(t => {
       const matchSearch = !search || t.description.toLowerCase().includes(search.toLowerCase()) || (t.categoryName || "").toLowerCase().includes(search.toLowerCase());
       const matchCat = filterCat === "all" || t.categoryId === filterCat;
@@ -1624,11 +1624,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           <option value="all">All categories</option>
           {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        {search && (
-          <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Search all months">
-            {searchAll ? "All months" : "This month"}
-          </button>
-        )}
+        <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Toggle whether the list below shows this month only or every month">
+          {searchAll ? "All months" : "This month"}
+        </button>
       </div>
 
       <div style={S.card}>
