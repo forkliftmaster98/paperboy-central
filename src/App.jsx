@@ -87,7 +87,7 @@ const shiftMonthStr = (m, d) => { const [y, mo] = m.split("-").map(Number); cons
 const last6Months = (m) => Array.from({ length: 6 }, (_, i) => shiftMonthStr(m, -(5 - i)));
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null };
 }
 
 function getMonthlyIncome(incomes) {
@@ -430,7 +430,8 @@ export default function BudgetManager() {
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
-  const addTxBatch = (txs, isCSV = false) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}) });
+  const addTxBatch = (txs, isCSV = false, extra = {}) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}), ...extra });
+  const saveCheckingBalance = (cb) => save({ ...data, checkingBalance: cb });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
   const updTxCat = (id, catId) => {
     const cat = data.categories.find(c => c.id === catId);
@@ -499,7 +500,7 @@ export default function BudgetManager() {
 
         <div style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
           {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} addSavAcct={addSavAcct} updSavAcct={updSavAcct} delSavAcct={delSavAcct} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
@@ -797,6 +798,15 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const savingsDeposits = monthTx.filter(t => t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
   const netCashFlow = totalIncome - totalSpent - savingsDeposits;
 
+  // Checking balance: last known balance from CSV + all transactions after that date
+  const cb = data.checkingBalance;
+  const estimatedBalance = cb ? (() => {
+    const afterTxs = data.transactions.filter(t => t.date > cb.asOf);
+    const incomeAfter = afterTxs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const expenseAfter = afterTxs.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+    return cb.amount + incomeAfter - expenseAfter;
+  })() : null;
+
   // Spending forecast — only meaningful for the current month
   const isCurrentMonth = month === curMonth();
   const today = new Date();
@@ -808,6 +818,25 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
   return (
     <div>
+      {estimatedBalance !== null && (
+        <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div>
+              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}>{fmt(estimatedBalance)}</div>
+              <div style={S.statL}>Checking Balance (Est.)</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: C.textDim }}>Snapshot: {fmt(cb.amount)}</div>
+              <div style={{ fontSize: 10, color: C.textDim }}>as of {cb.asOf}</div>
+            </div>
+          </div>
+          {data.transactions.some(t => t.date > cb.asOf) && (
+            <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>
+              Adjusted for {data.transactions.filter(t => t.date > cb.asOf).length} transaction{data.transactions.filter(t => t.date > cb.asOf).length !== 1 ? "s" : ""} logged after snapshot date
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
         <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
@@ -912,7 +941,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 // ════════════════════════════════════════════════════════
 //  TRANSACTIONS + CSV + RECURRING
 // ════════════════════════════════════════════════════════
-function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRecurring, delRecurring, payDebt, applyDebtPayments }) {
+function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRecurring, delRecurring, payDebt, applyDebtPayments, saveCheckingBalance }) {
   const [date, setDate] = useState(todayStr());
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState(data.categories[0]?.id || "");
@@ -926,6 +955,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
   const [csvRows, setCsvRows] = useState([]);
   const [csvDepositRows, setCsvDepositRows] = useState([]);
   const [depositTypes, setDepositTypes] = useState({});
+  const [csvLastBalance, setCsvLastBalance] = useState(null);
   const [csvCat] = useState(data.categories[0]?.id || "");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -984,6 +1014,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
         const dateCol = colIdx(["date", "time"]) || cols[0];
         const amtCol = colIdx(["amount", "total", "debit", "credit", "sum"]) || cols[1];
         const descCol = colIdx(["desc", "memo", "note", "narr", "detail", "merchant", "payee"]) || cols[2];
+        const balCol = colIdx(["running bal", "balance", "bal.", "ending bal"]);
 
         const map = { date: dateCol, amount: amtCol, desc: descCol };
 
@@ -1031,6 +1062,17 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           }
         });
 
+        // Capture last running balance from the final row in the CSV
+        const lastRow = allParsed[allParsed.length - 1];
+        if (lastRow && balCol) {
+          const rawBal = String(lastRow[balCol] || "").replace(/[^0-9.-]/g, "");
+          const rawDate = String(lastRow[dateCol] || "").trim();
+          const bal = parseFloat(rawBal);
+          if (!isNaN(bal)) {
+            setCsvLastBalance({ amount: bal, rawDate });
+          }
+        }
+
         if (expenseRows.length > 0 || depositRows.length > 0) {
           const syntheticResults = { meta: { fields: cols }, data: expenseRows };
           setCsvData(syntheticResults);
@@ -1074,9 +1116,23 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       const isExtra = dtype === "extra";
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: isExtra ? "Extra Income" : "Income", description: row[csvMap.desc] || "Deposit", type: "income", incomeKind: dtype });
     });
-    if (txs.length > 0) addTxBatch(txs, true);
+    // Parse the last balance date using same MM/DD/YYYY logic
+    let balanceAsOf = null;
+    if (csvLastBalance) {
+      const mmddyyyy = csvLastBalance.rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      balanceAsOf = mmddyyyy
+        ? `${mmddyyyy[3]}-${mmddyyyy[1].padStart(2,"0")}-${mmddyyyy[2].padStart(2,"0")}`
+        : csvLastBalance.rawDate;
+    }
+
+    const newCheckingBalance = csvLastBalance
+      ? { amount: csvLastBalance.amount, asOf: balanceAsOf }
+      : data.checkingBalance;
+
+    if (txs.length > 0) addTxBatch(txs, true, newCheckingBalance ? { checkingBalance: newCheckingBalance } : {});
+    else if (newCheckingBalance) saveCheckingBalance(newCheckingBalance);
     if (debtPayments.length > 0) applyDebtPayments(debtPayments);
-    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
+    setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); setCsvMode(false);
   };
 
   const handleAddRecurring = () => {
@@ -1258,7 +1314,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
                   <div style={{ fontSize: 11, color: C.textDim, alignSelf: "center" }}>{csvDepositRows.filter(r => ["bounce","refund","skip"].includes(depositTypes[r._depositId])).length} deposits skipped</div>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); }}>Cancel</button>
                 </div>
               </div>
             )}
