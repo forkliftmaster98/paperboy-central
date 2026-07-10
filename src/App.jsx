@@ -1586,12 +1586,25 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
               <button style={S.btn} onClick={handleAddRule}>Add Rule</button>
             </div>
             {(data.rules || []).length === 0 ? <div style={S.empty}>No rules.</div> : (
-              <table style={S.tbl}><thead><tr><th style={S.th}>Keywords</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(data.rules || []).map(r => {
                   const cat = data.categories.find(c => c.id === r.categoryId);
-                  return <tr key={r.id}><td style={{ ...S.td, fontSize: 12, color: "#AAA" }}>{r.keywords}</td><td style={S.td}>{cat?.name || r.categoryId}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRule(r.id)}>x</button></td></tr>;
+                  const kws = r.keywords.split(",").map(k => k.trim()).filter(Boolean);
+                  return (
+                    <div key={r.id} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "8px 10px", border: "1px solid " + C.border }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: C.green }}>{cat?.name || r.categoryId}</span>
+                        <button style={S.delBtn} onClick={() => delRule(r.id)}>✕</button>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {kws.map((k, i) => (
+                          <span key={i} style={{ fontSize: 10, background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: "2px 8px", color: C.textMid, whiteSpace: "nowrap" }}>{k}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
                 })}
-              </tbody></table>
+              </div>
             )}
           </div>
         )}
