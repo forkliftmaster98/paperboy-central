@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Bill body -->
+  <rect x="12" y="28" width="76" height="56" rx="8" fill="#22C55E"/>
+  <rect x="18" y="34" width="64" height="44" rx="4" fill="#16A34A"/>
+  <!-- Dollar sign -->
+  <text x="50" y="66" text-anchor="middle" fill="#14532D" font-size="34" font-weight="bold" font-family="Georgia, serif">$</text>
+  <!-- Newsboy cap brim -->
+  <ellipse cx="50" cy="30" rx="32" ry="7" fill="#3D2B1F"/>
+  <!-- Cap dome -->
+  <path d="M20 30 Q22 12 50 10 Q78 12 80 30" fill="#5C4433"/>
+  <!-- Cap band -->
+  <rect x="20" y="27" width="60" height="5" rx="2" fill="#3D2B1F"/>
+</svg>
