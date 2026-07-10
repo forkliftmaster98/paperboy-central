@@ -23,6 +23,10 @@ const DEFAULT_CATEGORIES = [
   { id: "auto", name: "Auto & Transport", type: "variable", budget: 0 },
   { id: "medical", name: "Medical", type: "variable", budget: 0 },
   { id: "pet", name: "Pet", type: "variable", budget: 0 },
+  { id: "donations", name: "Donations", type: "variable", budget: 0 },
+  { id: "transfers", name: "Transfers", type: "variable", budget: 0 },
+  { id: "trading", name: "Trading", type: "variable", budget: 0 },
+  { id: "cash", name: "Cash / ATM", type: "variable", budget: 0 },
   { id: "misc", name: "Misc", type: "variable", budget: 0 },
 ];
 
@@ -30,28 +34,34 @@ const DEFAULT_RULES = [
   { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
   // r3: subscriptions only — DashPass specifically, NOT generic doordash (those are dining)
-  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,scibellis,scibelli", categoryId: "dining" },
+  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock,kindle", categoryId: "subscriptions" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,scibellis,scibelli,aroma joe,mocha joe,lox stock,bagels,cinepolis", categoryId: "dining" },
   { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pilot,global montell", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers", categoryId: "shopping" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pilot,global montell,jiffy mart", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers,burton,berkshire e comm", categoryId: "shopping" },
   { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur,allianz", categoryId: "insurance" },
   { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness,stubhub,ticketmaster,tm *hey,wyckoff country", categoryId: "leisure" },
-  { id: "r10", keywords: "capital one,venmo,ally,car payment,loan payment,mobile pmt", categoryId: "misc" },
+  // r10: transfers — credit card payments, savings transfers, peer-to-peer
+  { id: "r10", keywords: "capital one,venmo,mobile pmt,loan payment,car payment,apple cash", categoryId: "transfers" },
   { id: "r11", keywords: "grape ape,vape,tobacco,cigarette,smoking ape,revitin", categoryId: "personal" },
   { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
-  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket,bousquet", categoryId: "leisure" },
-  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "misc" },
-  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline", categoryId: "auto" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,lift ticket,bousquet,berkshire east,colorado ski,mt snow,fabian mt,ski", categoryId: "leisure" },
+  // r14: ATM and cash withdrawals
+  { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "cash" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline,excel tire,e-z*pass,ezpass,ez pass,violations,parking,meter park", categoryId: "auto" },
   { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms,sunnys convenience", categoryId: "groceries" },
   { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
   { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
-  // New rules added based on real transaction history
-  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store", categoryId: "video_games" },
-  { id: "r20", keywords: "labcorp,urgent care,hospital,clinic,dentist,walgreens,cvs,rite aid,labcorp,excel tire", categoryId: "medical" },
+  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store,microsoft*stor,riot*,riot games", categoryId: "video_games" },
+  { id: "r20", keywords: "labcorp,urgent care,hospital,clinic,dentist,walgreens,cvs,rite aid", categoryId: "medical" },
   { id: "r21", keywords: "vca animal,petco,petsmart,pet supplies,animal hospital", categoryId: "pet" },
-  { id: "r22", keywords: "kelley & ryan,excise tax,tax collector,tax payment,dmv", categoryId: "taxes" },
-  { id: "r23", keywords: "kalshi,robinhood", categoryId: "misc" },
+  { id: "r22", keywords: "kelley & ryan,excise tax,tax collector,tax payment,dmv,southwick, town,town of southwick,e-z*pass mta,violations mta", categoryId: "taxes" },
+  // r23: trading/investing
+  { id: "r23", keywords: "kalshi,robinhood", categoryId: "trading" },
+  // r24: ally car loan → auto
+  { id: "r24", keywords: "ally", categoryId: "auto" },
+  // r25: donations
+  { id: "r25", keywords: "limitless foundation", categoryId: "donations" },
 ];
 
 const ACHIEVEMENTS = [
@@ -1052,7 +1062,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
           const desc = String(row[descCol] || "").toLowerCase();
           const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep|ondrick natural/.test(desc);
           const isBounce = /return of posted check|returned check|returned item/.test(desc);
-          const isRefund = /refund/.test(desc);
+          // Only treat as a refund if it looks like a merchant refund (has a merchant-style name before "refund")
+          // Exclude financial/tax transfers that happen to contain the word "refund"
+          const isRefund = /refund/.test(desc) && !/fbo refund|tax refund|intuit payments|transfer.*refund|refund proc/.test(desc);
           if (isBounce) {
             initTypes[row._depositId] = "bounce";
           } else if (isRefund) {
@@ -1257,7 +1269,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     )}
                     {csvDepositRows.some(r => depositTypes[r._depositId] === "refund") && (
                       <div style={{ fontSize: 11, color: C.textMid, background: C.surfaceHigh, borderRadius: 6, padding: "6px 10px", marginBottom: 6 }}>
-                        ↩ Refunds auto-marked as Skip — they reduce an existing expense, not real income. Change to Extra Income if needed.
+                        ↩ Merchant refunds auto-marked as Skip — they cancel an existing expense, not real income. Tax refunds and financial transfers are imported as Extra Income. Change any row manually if needed.
                       </div>
                     )}
                     <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto" }}>
