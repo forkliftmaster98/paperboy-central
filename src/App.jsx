@@ -394,7 +394,20 @@ const GLOBAL_CSS = `
   to   { opacity: 0; transform: translate(-50%, -12px); }
 }
 @keyframes barGrow {
-  from { width: 0% !important; }
+  from { width: 0; }
+}
+.page-anim > div > * { animation: fadeUp 0.24s ease both; }
+.page-anim > div > *:nth-child(1) { animation-delay: 0ms; }
+.page-anim > div > *:nth-child(2) { animation-delay: 30ms; }
+.page-anim > div > *:nth-child(3) { animation-delay: 60ms; }
+.page-anim > div > *:nth-child(4) { animation-delay: 90ms; }
+.page-anim > div > *:nth-child(5) { animation-delay: 120ms; }
+.page-anim > div > *:nth-child(6) { animation-delay: 150ms; }
+.page-anim > div > *:nth-child(7) { animation-delay: 180ms; }
+.page-anim > div > *:nth-child(n+8) { animation-delay: 210ms; }
+.anim-bar { animation: barGrow 0.55s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-anim > div > *, .anim-bar { animation: none !important; }
 }
 .pb-btn:hover { transform: scale(1.08); }
 .pb-btn:active { transform: scale(0.96); }
@@ -415,7 +428,37 @@ function GlobalStyles() {
   return <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />;
 }
 
-// ── PaperBoy SVG ──────────────────────────────────────────
+// ── CountUp — animates a currency value on mount/change ──
+function CountUp({ value, format = fmt, duration = 450, style, className }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const firstRun = useRef(true);
+
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value); fromRef.current = value; return;
+    }
+    const from = firstRun.current ? 0 : fromRef.current;
+    firstRun.current = false;
+    fromRef.current = value;
+    if (from === value) { setDisplay(value); return; }
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (value - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+
+  return <span style={style} className={className}>{format(display)}</span>;
+}
+
+// ── PaperBoy SVG ─
+
 function PaperBoySVG({ size = 40 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
@@ -631,7 +674,7 @@ export default function BudgetManager() {
           </div>
         </div>
 
-        <div key={tab} style={{ ...S.page, animation: "fadeUp 0.16s ease both" }}>
+        <div key={tab} className="page-anim" style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
           {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
@@ -918,7 +961,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const remaining = totalIncome - totalSpent;
   const overCats = data.categories.filter(c => c.budget > 0 && (catSpend[c.id] || 0) > c.budget);
   const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
-  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
+  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
 
   // All-time stats — the numbers that only grow
   const allTx = data.transactions;
@@ -970,7 +1013,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <div>
-              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}>{fmt(estimatedBalance)}</div>
+              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}><CountUp value={estimatedBalance} /></div>
               <div style={S.statL}>Checking Balance (Est.)</div>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -986,19 +1029,19 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
-        <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}><CountUp value={totalIncome} /></div><div style={S.statL}>Income</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}><CountUp value={totalSpent} /></div><div style={S.statL}>Spent</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}><CountUp value={remaining} /></div><div style={S.statL}>Left</div></div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(Math.abs(netCashFlow))}</div>
+          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}><CountUp value={Math.abs(netCashFlow)} /></div>
           <div style={S.statL}>Net Flow</div>
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{netCashFlow >= 0 ? "surplus" : "deficit"} after bills{savingsDeposits > 0 ? " & savings" : ""}</div>
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(netWorth)}</div>
+          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}><CountUp value={netWorth} /></div>
           <div style={S.statL}>Net Worth</div>
           {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
         </div>
@@ -1032,7 +1075,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <span style={{ ...S.cTitle, marginBottom: 0 }}>Budget Health</span>
             <span style={{ color: (totalBudgeted - totalSpent) < 0 ? C.red : C.green }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
           </div>
-          <div style={S.bar}><div style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? C.red : C.green)} /></div>
+          <div style={S.bar}><div className="anim-bar" style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? C.red : C.green)} /></div>
           {overCats.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>Over budget: {overCats.map(c => `${c.name} (+${fmt((catSpend[c.id] || 0) - c.budget)})`).join(", ")}</div>}
         </div>
       )}
@@ -1067,7 +1110,9 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
                 <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
                 <Bar dataKey="budget" fill="#243050" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
-                <Bar dataKey="spent" fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} name="Spent" />
+                <Bar dataKey="spent" radius={[0, 2, 2, 0]} barSize={8} name="Spent">
+                  {barData.map(d => <Cell key={d.id} fill={catColor(d.id)} />)}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1079,7 +1124,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
           <div style={{ ...S.cTitle, color: C.gold }}>Since You Started</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: lifeNet >= 0 ? C.green : C.red, fontFamily: "monospace" }}>{fmt(lifeNet)}</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: lifeNet >= 0 ? C.green : C.red, fontFamily: "monospace" }}><CountUp value={lifeNet} /></div>
               <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Net Kept</div>
             </div>
             <div>
@@ -1579,7 +1624,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
-        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? C.red : catColor(c.id))} /></div>}</td>
+        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div className="anim-bar" style={S.barF(pct(sp, c.budget), over ? C.red : catColor(c.id))} /></div>}</td>
         <td style={S.td}><button style={S.delBtn} onClick={() => delCat(c.id)}>x</button></td>
       </tr>
     );
@@ -1759,7 +1804,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
                 <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
-              <div style={S.bar}><div style={S.barF(Math.min(p, 100), completed ? C.green : C.green)} /></div>
+              <div style={S.bar}><div className="anim-bar" style={S.barF(Math.min(p, 100), completed ? C.green : C.green)} /></div>
               {needed !== null && (
                 <div style={{ fontSize: 11, color: onPace ? C.green : C.amber, marginTop: 4 }}>
                   {fmt(needed)}/mo needed to hit deadline {!onPace && "-- may need to adjust"}
