@@ -46,17 +46,17 @@ const DEFAULT_RULES = [
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
   // r3: subscriptions only — DashPass specifically, NOT generic doordash (those are dining)
   { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock,kindle", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,scibellis,scibelli,aroma joe,mocha joe,lox stock,bagels,cinepolis", categoryId: "dining" },
-  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pilot,global montell,jiffy mart", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers,burton,berkshire e comm", categoryId: "shopping" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,bear s sm,scibellis,scibelli,aroma joe,mocha joe,lox stock,bagels,cinepolis,five guys,paris baguette,great wall,dominos,little caesars,buffalo wild,tst*,tst *,summer house,congamond coffee,deep root,ellies farmhouse,millwright,rooftop,suffield villa", categoryId: "dining" },
+  { id: "r5", keywords: "stop shop,stop & shop,shaws,market,whole foods,aldi,walmart,wal-mart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pride spfld,pilot,global montell,jiffy mart", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers,burton,berkshire e comm,goodwill", categoryId: "shopping" },
   { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur,allianz", categoryId: "insurance" },
   { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness,stubhub,ticketmaster,tm *hey,wyckoff country", categoryId: "leisure" },
   // r10: transfers — credit card payments, savings transfers, peer-to-peer
   { id: "r10", keywords: "capital one,venmo,mobile pmt,loan payment,car payment,apple cash", categoryId: "transfers" },
   { id: "r11", keywords: "grape ape,vape,tobacco,cigarette,smoking ape,revitin", categoryId: "personal" },
   { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
-  { id: "r13", keywords: "otis ridge,ski area,ski resort,lift ticket,bousquet,berkshire east,colorado ski,mt snow,fabian mt,ski", categoryId: "leisure" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,lift ticket,bousquet,berkshire east,colorado ski,mt snow,fabian mt,killington,pico r,mass mutual center,ski", categoryId: "leisure" },
   // r14: ATM and cash withdrawals
   { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "cash" },
   { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline,excel tire,e-z*pass,ezpass,ez pass,violations,parking,meter park", categoryId: "auto" },
@@ -143,6 +143,24 @@ const monthLabel = (m) => { const [y, mo] = m.split("-"); return new Date(parseI
 const monthLabelLong = (m) => { const [y, mo] = m.split("-"); return new Date(parseInt(y), parseInt(mo) - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }); };
 const shiftMonthStr = (m, d) => { const [y, mo] = m.split("-").map(Number); const dt = new Date(y, mo - 1 + d); return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`; };
 const last6Months = (m) => Array.from({ length: 6 }, (_, i) => shiftMonthStr(m, -(5 - i)));
+
+// Storage backend: window.storage exists only in the original sandbox environment.
+// Real browsers (the Netlify deploy) use localStorage so data survives refresh.
+const storageBackend = {
+  async get(key) {
+    if (window.storage?.get) return window.storage.get(key);
+    const v = localStorage.getItem(key);
+    return v != null ? { value: v } : null;
+  },
+  async set(key, value) {
+    if (window.storage?.set) return window.storage.set(key, value);
+    localStorage.setItem(key, value);
+  },
+  async remove(key) {
+    if (window.storage?.delete) return window.storage.delete(key);
+    localStorage.removeItem(key);
+  },
+};
 
 function getDefaultState() {
   return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null };
@@ -556,6 +574,8 @@ export default function BudgetManager() {
   const [loading, setLoading] = useState(true);
   const [pbOpen, setPbOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [wipeConfirm, setWipeConfirm] = useState(false);
 
   const save = useCallback(async (nd) => {
     const newIds = checkAchievements(nd);
@@ -568,7 +588,7 @@ export default function BudgetManager() {
       if (def) setToast(def);
     }
     setData(finalData);
-    try { await window.storage.set(STORAGE_KEY, JSON.stringify(finalData)); } catch(e) { console.error(e); }
+    try { await storageBackend.set(STORAGE_KEY, JSON.stringify(finalData)); } catch(e) { console.error(e); }
   }, []);
 
   // Auto-generate recurring transactions on load
@@ -591,7 +611,7 @@ export default function BudgetManager() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await window.storage.get(STORAGE_KEY);
+        const r = await storageBackend.get(STORAGE_KEY);
         if (r?.value) {
           const parsed = { ...getDefaultState(), ...JSON.parse(r.value) };
 
@@ -613,7 +633,7 @@ export default function BudgetManager() {
           const withRecurring = generateRecurring(parsed);
           setData(withRecurring);
           if (withRecurring !== parsed) {
-            await window.storage.set(STORAGE_KEY, JSON.stringify(withRecurring));
+            await storageBackend.set(STORAGE_KEY, JSON.stringify(withRecurring));
           }
         } else { setData(getDefaultState()); }
       } catch { setData(getDefaultState()); }
@@ -709,6 +729,9 @@ export default function BudgetManager() {
             <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(-1)}>&#8249;</button>
             <span style={S.mLbl}>{monthLabelLong(month)}</span>
             <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(1)}>&#8250;</button>
+            <button style={{ ...S.mBtn, padding: "6px 10px" }} className="app-btn-ghost" title="Settings" onClick={() => { setSettingsOpen(v => !v); setWipeConfirm(false); }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
           </div>
         </div>
 
@@ -720,6 +743,39 @@ export default function BudgetManager() {
           {tab === 4 && <TrendsTab data={data} month={month} />}
         </div>
       </div>
+
+      {/* Settings panel */}
+      {settingsOpen && (
+        <>
+          <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300 }} />
+          <div style={{ position: "fixed", top: 60, right: 12, width: 300, maxWidth: "calc(100vw - 24px)", background: C.surface, border: "1px solid " + C.border, borderRadius: 14, boxShadow: "0 8px 40px rgba(0,0,0,0.7)", zIndex: 301, padding: "16px", animation: "fadeUp 0.18s ease both" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>Settings</div>
+              <button onClick={() => setSettingsOpen(false)} style={{ background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 16 }}>✕</button>
+            </div>
+            <div style={{ fontSize: 11, color: C.textDim, marginBottom: 10 }}>More options coming soon (themes, export, and more).</div>
+            <div style={{ borderTop: "1px solid " + C.border, paddingTop: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.red, marginBottom: 6 }}>Danger Zone</div>
+              {!wipeConfirm ? (
+                <button style={{ ...S.btnD, padding: "8px 14px", fontSize: 12 }} onClick={() => setWipeConfirm(true)}>Wipe all data…</button>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 12, color: C.text, marginBottom: 8 }}>This permanently deletes every transaction, budget, goal, debt, rule, and achievement on this device. There is no undo.</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button style={{ ...S.btnD, padding: "8px 14px", fontSize: 12 }} onClick={async () => {
+                      try { await storageBackend.remove(STORAGE_KEY); } catch (e) { console.error(e); }
+                      setData(getDefaultState());
+                      setWipeConfirm(false);
+                      setSettingsOpen(false);
+                    }}>Yes, wipe everything</button>
+                    <button style={S.btnG} onClick={() => setWipeConfirm(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Bottom nav */}
       <nav style={S.bottomNav}>
@@ -859,7 +915,16 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1000,
-          system: `You are PaperBoy, a no-nonsense financial advisor living inside a personal budget app. You look like a dollar bill wearing a newsboy cap. You're direct, practical, and occasionally dry. You give specific advice from the user's actual numbers -- never generic tips.\n\nUser's financial data:\n${ctx}\n\nRules:\n- Always reference their actual figures, not hypotheticals\n- Be direct. If numbers are bad, say so. If good, acknowledge briefly and move on.\n- Keep responses to 3-5 sentences unless they ask for detail or a breakdown\n- Use casual language but be precise with money amounts\n- If they ask for a goal plan, calculate the exact monthly savings needed from their data\n- If they're off pace for a goal, tell them by how much and what to do\n- If they ask about debt payoff order, use avalanche (highest rate first) by default unless they specify\n- Flag if any payment doesn't cover interest\n- If they need a licensed professional (tax, legal, investment management), say so clearly\n- You are not a licensed financial advisor. Say that if asked for specific investment picks.\n- Never make up numbers. Only use what's in the data above.`,
+          system: `You are PaperBoy, a no-nonsense financial advisor living inside a personal budget app. You look like a dollar bill wearing a newsboy cap. You're direct, practical, and occasionally dry. You give specific advice from the user's actual numbers -- never generic tips.\n\nUser's financial data:\n${ctx}\n\nRules:\n- Always reference their actual figures, not hypotheticals\n- Be direct. If numbers are bad, say so. If good, acknowledge briefly and move on.\n- Keep responses to 3-5 sentences unless they ask for detail or a breakdown\n- Use casual language but be precise with money amounts\n- If they ask for a goal plan, calculate the exact monthly savings needed from their data\n- If they're off pace for a goal, tell them by how much and what to do\n- If they ask about debt payoff order, use avalanche (highest rate first) by default unless they specify\n- Flag if any payment doesn't cover interest\n- If they need a licensed professional (tax, legal, investment management), say so clearly\n- You are not a licensed financial advisor. Say that if asked for specific investment picks.\n- Never make up numbers. Only use what's in the data above.
+
+You also know how this app works and can answer usage questions:
+- Tabs: Home (dashboard, balance, streak, charts), Txns (add/import/search transactions), Budget (income, category budgets, auto-categorization rules), Goals (savings goals, savings accounts, debts, achievements), Trends (report card, month comparisons)
+- CSV import: Txns tab -> Import CSV -> drop a bank CSV. Deposits are classified (paycheck/extra/refund/bounce/skip) and expenses auto-categorized; rows can be excluded with the checkbox or deleted before importing. The checking balance is captured automatically from the CSV's running balance
+- Transactions: tap a category name to change it; the X deletes a transaction; "All months"/"This month" toggles the list scope
+- Rules: Budget tab -> Auto-Categorization Rules; keywords match descriptions on import
+- Achievements are bronze/silver/gold and feed your level (ring around my icon). The report card grades finished months on the Trends tab
+- Settings (gear, top right) can wipe all data
+- Data is stored on this device only; clearing browser data erases it`,
           messages: history
         })
       });
