@@ -6,6 +6,16 @@ import Papa from "papaparse";
 const STORAGE_KEY = "budget-manager-v3";
 const COLORS = ["#5B8A72","#C9A227","#9C4A3C","#3E7C74","#8B6DB0","#C97B3A","#5A7FA5","#D4756B","#6BAA75","#B8964E","#7A6B8A","#4A90A0"];
 
+// One identity color per category — follows the category through rows, pie slices, and bars
+const CAT_COLORS = {
+  rent: "#E06C75", utilities: "#61AFEF", insurance: "#56B6C2", phone: "#C678DD",
+  subscriptions: "#B48EAD", taxes: "#D19A66", groceries: "#98C379", dining: "#E5C07B",
+  gas: "#DF8E52", shopping: "#EC9DBF", video_games: "#7C7CE8", leisure: "#4DC4B0",
+  personal: "#D879C9", auto: "#5FA8F5", medical: "#E85D75", pet: "#C4A35A",
+  donations: "#F2C14E", transfers: "#8A9BB8", trading: "#63D4A0", cash: "#A0AEC4", misc: "#7A8AA8",
+};
+const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
+
 const DEFAULT_CATEGORIES = [
   { id: "rent", name: "Rent/Mortgage", type: "fixed", budget: 0 },
   { id: "utilities", name: "Utilities", type: "fixed", budget: 0 },
@@ -66,42 +76,42 @@ const DEFAULT_RULES = [
 
 const ACHIEVEMENTS = [
   // Setup
-  { id: "first_income", title: "Income Set", desc: "Added your first income source" },
-  { id: "first_tx", title: "First Log", desc: "Logged your first transaction manually" },
-  { id: "csv_import", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
-  { id: "all_budgets", title: "Budget Ready", desc: "Set budgets for all spending categories" },
+  { id: "first_income", tier: "bronze", title: "Income Set", desc: "Added your first income source" },
+  { id: "first_tx", tier: "bronze", title: "First Log", desc: "Logged your first transaction manually" },
+  { id: "csv_import", tier: "bronze", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
+  { id: "all_budgets", tier: "bronze", title: "Budget Ready", desc: "Set budgets for all spending categories" },
   // Volume
-  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
-  { id: "tx_200", title: "Data Machine", desc: "Logged 200+ transactions" },
+  { id: "tx_50", tier: "silver", title: "Tracking Champ", desc: "Logged 50+ transactions" },
+  { id: "tx_200", tier: "gold", title: "Data Machine", desc: "Logged 200+ transactions" },
   // Savings rate
-  { id: "save_20pct", title: "20% Club", desc: "Saved 20%+ of income in a month" },
-  { id: "save_30pct", title: "30% Club", desc: "Saved 30%+ of income in a month" },
-  { id: "stack_month", title: "Stack Month", desc: "Net positive $500+ in a single month" },
+  { id: "save_20pct", tier: "silver", title: "20% Club", desc: "Saved 20%+ of income in a month" },
+  { id: "save_30pct", tier: "gold", title: "30% Club", desc: "Saved 30%+ of income in a month" },
+  { id: "stack_month", tier: "silver", title: "Stack Month", desc: "Net positive $500+ in a single month" },
   // Budget discipline
-  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
-  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
-  { id: "half_year", title: "Half Year", desc: "Under budget 6 months in a row" },
-  { id: "all_in", title: "All In", desc: "Every category under budget in the same month" },
+  { id: "budget_month", tier: "silver", title: "On Budget", desc: "Stayed under total budget for a full month" },
+  { id: "budget_streak", tier: "silver", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  { id: "half_year", tier: "gold", title: "Half Year", desc: "Under budget 6 months in a row" },
+  { id: "all_in", tier: "gold", title: "All In", desc: "Every category under budget in the same month" },
   // Category discipline
-  { id: "clean_sheet", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
-  { id: "home_chef", title: "Home Chef", desc: "Dining Out under budget for a full month" },
-  { id: "controlled_player", title: "Controlled Player", desc: "Video Games under budget for a full month" },
-  { id: "going_digital", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
-  { id: "budget_nerd", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
+  { id: "clean_sheet", tier: "silver", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
+  { id: "home_chef", tier: "silver", title: "Home Chef", desc: "Dining Out under budget for a full month" },
+  { id: "controlled_player", tier: "silver", title: "Controlled Player", desc: "Video Games under budget for a full month" },
+  { id: "going_digital", tier: "silver", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
+  { id: "budget_nerd", tier: "silver", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
   // Goals & savings
-  { id: "first_goal", title: "Goal Setter", desc: "Created your first savings goal" },
-  { id: "first_deposit", title: "First Deposit", desc: "Made your first savings deposit" },
-  { id: "goal_25", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
-  { id: "goal_50", title: "Halfway There", desc: "Reached 50% on any savings goal" },
-  { id: "goal_100", title: "Goal Crusher", desc: "Fully funded a savings goal" },
-  { id: "goals_3", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
-  { id: "emergency_fund", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
+  { id: "first_goal", tier: "bronze", title: "Goal Setter", desc: "Created your first savings goal" },
+  { id: "first_deposit", tier: "bronze", title: "First Deposit", desc: "Made your first savings deposit" },
+  { id: "goal_25", tier: "silver", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
+  { id: "goal_50", tier: "silver", title: "Halfway There", desc: "Reached 50% on any savings goal" },
+  { id: "goal_100", tier: "gold", title: "Goal Crusher", desc: "Fully funded a savings goal" },
+  { id: "goals_3", tier: "gold", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
+  { id: "emergency_fund", tier: "gold", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
   // Debt
-  { id: "first_debt", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
-  { id: "debt_zero", title: "Debt Slayer", desc: "Paid off a debt completely" },
+  { id: "first_debt", tier: "bronze", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
+  { id: "debt_zero", tier: "gold", title: "Debt Slayer", desc: "Paid off a debt completely" },
   // Character
-  { id: "giving_back", title: "Giving Back", desc: "Made a donation" },
-  { id: "trader", title: "In the Market", desc: "Made a trading or investing transaction" },
+  { id: "giving_back", tier: "bronze", title: "Giving Back", desc: "Made a donation" },
+  { id: "trader", tier: "bronze", title: "In the Market", desc: "Made a trading or investing transaction" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────
@@ -301,21 +311,25 @@ function checkAchievements(data) {
 }
 
 // ── Design tokens ─────────────────────────────────────────
+// Deep blue-slate foundation: dark but warm, not a black void
 const C = {
-  bg: "#0A0A0A",
-  surface: "#141414",
-  surfaceHigh: "#1E1E1E",
-  border: "#2A2A2A",
-  green: "#22C55E",
+  bg: "#0B1120",
+  surface: "#121A2C",
+  surfaceHigh: "#1B2540",
+  border: "#243050",
+  borderGlow: "#33426B",
+  green: "#2ECC71",
   greenDim: "#14532D",
-  blue: "#3B82F6",
+  gold: "#E3B341",
+  goldDim: "#4A3A12",
+  blue: "#4C8DF6",
   blueDim: "#1E3A8A",
   red: "#EF4444",
   redDim: "#7F1D1D",
   amber: "#F59E0B",
-  text: "#F1F5F9",
-  textMid: "#94A3B8",
-  textDim: "#7A8FA6",
+  text: "#EDF2FA",
+  textMid: "#9AABC7",
+  textDim: "#64748F",
 };
 
 // ── Styles ────────────────────────────────────────────────
@@ -331,8 +345,8 @@ const S = {
   navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
-  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  card: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
   inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
@@ -380,17 +394,30 @@ const GLOBAL_CSS = `
   to   { opacity: 0; transform: translate(-50%, -12px); }
 }
 @keyframes barGrow {
-  from { width: 0% !important; }
+  from { width: 0; }
+}
+.page-anim > div > * { animation: fadeUp 0.24s ease both; }
+.page-anim > div > *:nth-child(1) { animation-delay: 0ms; }
+.page-anim > div > *:nth-child(2) { animation-delay: 30ms; }
+.page-anim > div > *:nth-child(3) { animation-delay: 60ms; }
+.page-anim > div > *:nth-child(4) { animation-delay: 90ms; }
+.page-anim > div > *:nth-child(5) { animation-delay: 120ms; }
+.page-anim > div > *:nth-child(6) { animation-delay: 150ms; }
+.page-anim > div > *:nth-child(7) { animation-delay: 180ms; }
+.page-anim > div > *:nth-child(n+8) { animation-delay: 210ms; }
+.anim-bar { animation: barGrow 0.55s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-anim > div > *, .anim-bar { animation: none !important; }
 }
 .pb-btn:hover { transform: scale(1.08); }
 .pb-btn:active { transform: scale(0.96); }
 .app-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
-.app-card:hover { border-color: #3A3A3A !important; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+.app-card:hover { border-color: #33426B !important; box-shadow: 0 2px 14px rgba(0,0,0,0.4); }
 .app-btn { transition: opacity 0.15s, transform 0.12s; }
 .app-btn:hover { opacity: 0.88; }
 .app-btn:active { transform: scale(0.97); }
 .app-btn-ghost { transition: background 0.15s, color 0.15s; }
-.app-btn-ghost:hover { background: #2A2A2A !important; color: #C8D5E0 !important; }
+.app-btn-ghost:hover { background: #243050 !important; color: #C8D5E0 !important; }
 .nav-item { transition: color 0.18s; }
 .nav-dot { transition: opacity 0.25s, transform 0.25s; }
 .del-btn { transition: color 0.15s, transform 0.12s; }
@@ -401,7 +428,37 @@ function GlobalStyles() {
   return <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />;
 }
 
-// ── PaperBoy SVG ──────────────────────────────────────────
+// ── CountUp — animates a currency value on mount/change ──
+function CountUp({ value, format = fmt, duration = 450, style, className }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const firstRun = useRef(true);
+
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setDisplay(value); fromRef.current = value; return;
+    }
+    const from = firstRun.current ? 0 : fromRef.current;
+    firstRun.current = false;
+    fromRef.current = value;
+    if (from === value) { setDisplay(value); return; }
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (value - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+
+  return <span style={style} className={className}>{format(display)}</span>;
+}
+
+// ── PaperBoy SVG ─
+
 function PaperBoySVG({ size = 40 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none">
@@ -431,18 +488,20 @@ function AchievementToast({ achievement, onDone }) {
     return () => { clearTimeout(dismiss); clearTimeout(remove); };
   }, [onDone]);
 
+  const gold = achievement.tier === "gold";
+  const accent = gold ? C.gold : C.green;
   return (
     <div style={{
       position: "fixed", top: 16, left: "50%", zIndex: 999,
-      background: C.greenDim, border: "1px solid " + C.green,
+      background: gold ? C.goldDim : C.greenDim, border: "1px solid " + accent,
       borderRadius: 12, padding: "12px 18px",
       display: "flex", alignItems: "center", gap: 10,
-      boxShadow: "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
+      boxShadow: gold ? `0 4px 28px ${C.gold}55` : "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
       animation: leaving ? "toastOut 0.45s ease forwards" : "toastIn 0.3s ease both",
     }}>
-      <span style={{ fontSize: 22 }}>🏆</span>
+      <span style={{ fontSize: 22 }}>{gold ? "🏆" : achievement.tier === "silver" ? "🥈" : "🥉"}</span>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>Achievement Unlocked · {achievement.title}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: accent }}>Achievement Unlocked · {achievement.title}</div>
         <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{achievement.desc}</div>
       </div>
     </div>
@@ -542,7 +601,7 @@ export default function BudgetManager() {
     return manual + deposits;
   }, [data, monthTx]);
 
-  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#888" }}>Loading...</p></div>;
+  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#7C8CAD" }}>Loading...</p></div>;
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
@@ -615,7 +674,7 @@ export default function BudgetManager() {
           </div>
         </div>
 
-        <div key={tab} style={{ ...S.page, animation: "fadeUp 0.16s ease both" }}>
+        <div key={tab} className="page-anim" style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
           {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
@@ -775,14 +834,14 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
           <PaperBoySVG size={24} />
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1 }}>PaperBoy</div>
-            <div style={{ fontSize: 10, color: "#888" }}>Financial Advisor</div>
+            <div style={{ fontSize: 10, color: "#7C8CAD" }}>Financial Advisor</div>
           </div>
         </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 18 }}>x</button>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "#7C8CAD", cursor: "pointer", fontSize: 18 }}>x</button>
       </div>
       <div ref={bodyRef} style={S.pbBody}>
         {messages.map((m, i) => <div key={i} style={S.pbMsg(m.role === "user")}>{m.text}</div>)}
-        {thinking && <div style={{ ...S.pbMsg(false), color: "#888" }}>Crunching numbers...</div>}
+        {thinking && <div style={{ ...S.pbMsg(false), color: "#7C8CAD" }}>Crunching numbers...</div>}
       </div>
       {/* Quick prompts */}
       {messages.length <= 1 && !thinking && (
@@ -841,7 +900,7 @@ function BillCalendar({ recurring, month }) {
               borderRadius: 6,
               padding: "4px 2px",
               minHeight: 38,
-              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#1A1A1A" : "#2A1A0E") : "transparent",
+              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#151E33" : "#2A1A0E") : "transparent",
               border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
               opacity: past && !bills.length ? 0.35 : 1,
               cursor: bills.length ? "default" : "default",
@@ -901,8 +960,22 @@ function BillCalendar({ recurring, month }) {
 function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIncome, month }) {
   const remaining = totalIncome - totalSpent;
   const overCats = data.categories.filter(c => c.budget > 0 && (catSpend[c.id] || 0) > c.budget);
-  const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
-  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
+  const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
+  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
+
+  // All-time stats — the numbers that only grow
+  const allTx = data.transactions;
+  const lifeIncome = allTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const lifeSpent = allTx.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  const lifeNet = lifeIncome - lifeSpent;
+  const monthNets = {};
+  allTx.forEach(t => {
+    const m = monthKey(t.date); if (!m) return;
+    if (!monthNets[m]) monthNets[m] = 0;
+    if (t.type === "income") monthNets[m] += t.amount;
+    else if (!t.isSavingsDeposit) monthNets[m] -= t.amount;
+  });
+  const bestMonth = Object.entries(monthNets).sort((a, b) => b[1] - a[1])[0];
 
   const tips = analyzeFinances(data, month);
   const alertTips = tips.filter(t => t.type !== "good" && t.type !== "goal");
@@ -940,7 +1013,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <div>
-              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}>{fmt(estimatedBalance)}</div>
+              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}><CountUp value={estimatedBalance} /></div>
               <div style={S.statL}>Checking Balance (Est.)</div>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -956,24 +1029,24 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         </div>
       )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
-        <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}>{fmt(totalIncome)}</div><div style={S.statL}>Income</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}>{fmt(totalSpent)}</div><div style={S.statL}>Spent</div></div>
-        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}>{fmt(remaining)}</div><div style={S.statL}>Left</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}><CountUp value={totalIncome} /></div><div style={S.statL}>Income</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}><CountUp value={totalSpent} /></div><div style={S.statL}>Spent</div></div>
+        <div style={S.card}><div style={{ ...S.statV, color: remaining < 0 ? C.red : C.green, fontSize: 20 }}><CountUp value={remaining} /></div><div style={S.statL}>Left</div></div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(Math.abs(netCashFlow))}</div>
+          <div style={{ ...S.statV, color: netCashFlow >= 0 ? C.green : C.red, fontSize: 18 }}><CountUp value={Math.abs(netCashFlow)} /></div>
           <div style={S.statL}>Net Flow</div>
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{netCashFlow >= 0 ? "surplus" : "deficit"} after bills{savingsDeposits > 0 ? " & savings" : ""}</div>
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}>{fmt(netWorth)}</div>
+          <div style={{ ...S.statV, color: netWorth >= 0 ? C.green : C.red, fontSize: 18 }}><CountUp value={netWorth} /></div>
           <div style={S.statL}>Net Worth</div>
           {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: C.amber, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
+          <div style={{ ...S.statV, color: C.gold, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
           <div style={S.statL}>Achievements</div>
           {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab</div>}
         </div>
@@ -998,11 +1071,11 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#AAA" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#9AABC7" }}>
             <span style={{ ...S.cTitle, marginBottom: 0 }}>Budget Health</span>
             <span style={{ color: (totalBudgeted - totalSpent) < 0 ? C.red : C.green }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
           </div>
-          <div style={S.bar}><div style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? C.red : C.green)} /></div>
+          <div style={S.bar}><div className="anim-bar" style={S.barF(pct(totalSpent, totalBudgeted), totalSpent > totalBudgeted ? C.red : C.green)} /></div>
           {overCats.length > 0 && <div style={{ marginTop: 8, fontSize: 11, color: C.red }}>Over budget: {overCats.map(c => `${c.name} (+${fmt((catSpend[c.id] || 0) - c.budget)})`).join(", ")}</div>}
         </div>
       )}
@@ -1020,11 +1093,11 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={S.cTitle}>Spending Breakdown</div>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart><Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2} strokeWidth={0}>
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} /></PieChart>
+                {pieData.map((d) => <Cell key={d.id} fill={catColor(d.id)} />)}
+              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 10 }}>
-              {pieData.map((d, i) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
+              {pieData.map((d) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(d.id), flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
             </div>
           </div>
         )}
@@ -1033,22 +1106,46 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={S.cTitle}>Budget vs Actual</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#AAA", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
-                <Bar dataKey="budget" fill="#333" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
-                <Bar dataKey="spent" fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} name="Spent" />
+                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+                <Bar dataKey="budget" fill="#243050" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
+                <Bar dataKey="spent" radius={[0, 2, 2, 0]} barSize={8} name="Spent">
+                  {barData.map(d => <Cell key={d.id} fill={catColor(d.id)} />)}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
       </div>
 
+      {allTx.length > 0 && (
+        <div style={{ ...S.card, borderColor: C.goldDim }}>
+          <div style={{ ...S.cTitle, color: C.gold }}>Since You Started</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: lifeNet >= 0 ? C.green : C.red, fontFamily: "monospace" }}><CountUp value={lifeNet} /></div>
+              <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Net Kept</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "monospace" }}>{allTx.length.toLocaleString()}</div>
+              <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Tracked</div>
+            </div>
+            {bestMonth && (
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.gold, fontFamily: "monospace" }}>{fmt(bestMonth[1])}</div>
+                <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Best Month · {monthLabel(bestMonth[0])}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={S.card}>
         <div style={S.cTitle}>Recent Transactions</div>
         {monthTx.length === 0 ? <div style={S.empty}>No transactions this month.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th></tr></thead><tbody>
-            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
+            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId) }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1309,7 +1406,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
+            <div style={{ fontSize: 12, color: "#9AABC7", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
@@ -1321,7 +1418,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
             </div>
             {(data.recurring || []).length === 0 ? <div style={S.empty}>No recurring transactions set.</div> : (
               <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
+                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
             )}
           </div>
@@ -1334,10 +1431,10 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={e => e.target.files[0] && handleCSV(e.target.files[0])} />
                 <div onClick={() => fileRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#C9A227"; }}
-                  onDragLeave={e => { e.currentTarget.style.borderColor = "#333"; }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#333"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
-                  style={{ border: "2px dashed #333", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#888", fontSize: 13 }}>
-                  Drop CSV here or click to browse<br/><span style={{ fontSize: 11, color: "#555" }}>Bank: Account &gt; Activity &gt; Download/Export</span>
+                  onDragLeave={e => { e.currentTarget.style.borderColor = "#33426B"; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#33426B"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
+                  style={{ border: "2px dashed #33426B", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#7C8CAD", fontSize: 13 }}>
+                  Drop CSV here or click to browse<br/><span style={{ fontSize: 11, color: "#5A6A8C" }}>Bank: Account &gt; Activity &gt; Download/Export</span>
                 </div>
               </div>
             ) : (
@@ -1345,7 +1442,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 <div style={{ ...S.row, gap: 8, marginBottom: 10 }}>
                   {["date", "amount", "desc"].map(field => (
                     <div key={field} style={{ flex: 1 }}>
-                      <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
+                      <label style={{ fontSize: 10, color: "#7C8CAD", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
                       <select style={{ ...S.sel, width: "100%" }} value={csvMap[field]} onChange={e => {
                         const newMap = { ...csvMap, [field]: e.target.value };
                         setCsvMap(newMap);
@@ -1364,12 +1461,12 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "#7C8CAD", marginBottom: 6 }}>
                   {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
                 </div>
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.green, marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
                     {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
                       <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
                         ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
@@ -1388,9 +1485,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                           const isRefund = dtype === "refund";
                           return (
                             <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
-                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date]}</td>
                               <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
-                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: C.green }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                               <td style={S.td}>
                                 <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px", borderColor: isBounce ? C.red : isRefund ? C.amber : C.border }}
                                   value={dtype} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
@@ -1413,7 +1510,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
                       <tr key={i}>
-                        <td style={{ ...S.td, fontSize: 11, color: "#888" }}>{row[csvMap.date] || "?"}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date] || "?"}</td>
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
                         <td style={{ ...S.td, fontSize: 11 }}>{csvMap.desc ? row[csvMap.desc] || "" : ""}</td>
                         <td style={S.td}>
@@ -1430,7 +1527,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       </tr>
                     ))}
                   </tbody></table>
-                  {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
+                  {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#7C8CAD", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
@@ -1460,19 +1557,19 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
-          <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
+          <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Cat.</th><th style={{ ...S.th, textAlign: "right" }}>Amt</th><th style={{ ...S.th, width: 28 }}></th></tr></thead><tbody>
             {filtered.map(t => (
               <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
-                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#888", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
+                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#7C8CAD", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
                 <td style={{ ...S.td, maxWidth: 0, width: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   <span title={t.description}>{t.description}</span>
                   {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
                   {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
                   {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt</span>}
-                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>pay</span>}
+                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: C.green, color: "#fff" }}>pay</span>}
                   {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
                 </td>
                 <td style={{ ...S.td, maxWidth: 0, width: "25%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
@@ -1485,14 +1582,14 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </select>
                   ) : (
                     <span
-                      style={{ color: t.type === "income" ? "#5B8A72" : "#888", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #444" : "none" }}
+                      style={{ color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
                       title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                       onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
                       {t.categoryName}
                     </span>
                   )}
                 </td>
-                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
+                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
                 <td style={{ ...S.td, padding: "10px 6px" }}><button style={S.delBtn} onClick={() => delTx(t.id)}>✕</button></td>
               </tr>
             ))}
@@ -1524,10 +1621,10 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
     const sp = catSpend[c.id] || 0; const over = c.budget > 0 && sp > c.budget;
     return (
       <tr>
-        <td style={S.td}>{c.name}</td>
+        <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
-        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? C.red : C.green)} /></div>}</td>
+        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div className="anim-bar" style={S.barF(pct(sp, c.budget), over ? C.red : catColor(c.id))} /></div>}</td>
         <td style={S.td}><button style={S.delBtn} onClick={() => delCat(c.id)}>x</button></td>
       </tr>
     );
@@ -1545,8 +1642,8 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {data.incomes.length === 0 ? <div style={S.empty}>No income sources.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Source</th><th style={S.th}>Amount</th><th style={S.th}>Freq</th><th style={S.th}>Monthly Est.</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#888" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
-            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #333" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #333" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
+            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
+            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #243050" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #243050" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
           </tbody></table>
         )}
       </div>
@@ -1577,7 +1674,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {showRules && (
           <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
+            <div style={{ fontSize: 12, color: "#7C8CAD", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
@@ -1586,12 +1683,25 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
               <button style={S.btn} onClick={handleAddRule}>Add Rule</button>
             </div>
             {(data.rules || []).length === 0 ? <div style={S.empty}>No rules.</div> : (
-              <table style={S.tbl}><thead><tr><th style={S.th}>Keywords</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {(data.rules || []).map(r => {
                   const cat = data.categories.find(c => c.id === r.categoryId);
-                  return <tr key={r.id}><td style={{ ...S.td, fontSize: 12, color: "#AAA" }}>{r.keywords}</td><td style={S.td}>{cat?.name || r.categoryId}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRule(r.id)}>x</button></td></tr>;
+                  const kws = r.keywords.split(",").map(k => k.trim()).filter(Boolean);
+                  return (
+                    <div key={r.id} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "8px 10px", border: "1px solid " + C.border, borderLeft: "3px solid " + catColor(r.categoryId) }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: catColor(r.categoryId) }}>{cat?.name || r.categoryId}</span>
+                        <button style={S.delBtn} onClick={() => delRule(r.id)}>✕</button>
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {kws.map((k, i) => (
+                          <span key={i} style={{ fontSize: 10, background: C.surface, border: "1px solid " + C.border, borderRadius: 10, padding: "2px 8px", color: C.textMid, whiteSpace: "nowrap" }}>{k}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
                 })}
-              </tbody></table>
+              </div>
             )}
           </div>
         )}
@@ -1688,13 +1798,13 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             <div key={g.id} style={{ padding: "12px 0", borderBottom: "1px solid #222" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                 <span style={{ fontWeight: 500 }}>{g.name}{completed && <span style={{ marginLeft: 6, background: C.green, color: "#000", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99 }}>FUNDED</span>}</span>
-                <span style={{ fontSize: 11, color: "#888" }}>{g.targetDate || "No deadline"}</span>
+                <span style={{ fontSize: 11, color: "#7C8CAD" }}>{g.targetDate || "No deadline"}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#AAA", margin: "3px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9AABC7", margin: "3px 0" }}>
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
                 <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
-              <div style={S.bar}><div style={S.barF(Math.min(p, 100), completed ? C.green : "#5B8A72")} /></div>
+              <div style={S.bar}><div className="anim-bar" style={S.barF(Math.min(p, 100), completed ? C.green : C.green)} /></div>
               {needed !== null && (
                 <div style={{ fontSize: 11, color: onPace ? C.green : C.amber, marginTop: 4 }}>
                   {fmt(needed)}/mo needed to hit deadline {!onPace && "-- may need to adjust"}
@@ -1767,9 +1877,9 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             </tbody></table></div>
             {simId && (
               <div style={{ ...S.row, gap: 8, marginTop: 10, padding: "10px 14px", background: "#111", borderRadius: 3 }}>
-                <span style={{ fontSize: 12, color: "#AAA" }}>Extra payment/mo:</span>
+                <span style={{ fontSize: 12, color: "#9AABC7" }}>Extra payment/mo:</span>
                 <input type="number" style={{ ...S.inpSm, width: 90 }} placeholder="$ extra" value={simExtra} onChange={e => setSimExtra(e.target.value)} min="0" />
-                <span style={{ fontSize: 11, color: "#888" }}>See payoff time update above in the sim column row</span>
+                <span style={{ fontSize: 11, color: "#7C8CAD" }}>See payoff time update above in the sim column row</span>
               </div>
             )}
           </div>
@@ -1791,17 +1901,27 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={S.cTitle}>Achievements</div>
-          <span style={{ fontSize: 12, color: C.amber, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
+          <span style={{ fontSize: 12, color: C.gold, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {ACHIEVEMENTS.map(a => {
             const earned = achievements.find(e => e.id === a.id);
+            const tierColor = a.tier === "gold" ? C.gold : a.tier === "silver" ? "#A8B4C4" : "#C08552";
+            const tierIcon = a.tier === "gold" ? "🏆" : a.tier === "silver" ? "🥈" : "🥉";
             return (
-              <div key={a.id} style={{ background: earned ? C.greenDim + "66" : C.surfaceHigh, border: "1px solid " + (earned ? C.green + "55" : C.border), borderRadius: 8, padding: "10px 12px", opacity: earned ? 1 : 0.45 }}>
-                <div style={{ fontSize: 16, marginBottom: 3 }}>{earned ? "🏆" : "🔒"}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: earned ? C.text : C.textDim }}>{a.title}</div>
+              <div key={a.id} style={{
+                background: earned ? (a.tier === "gold" ? C.goldDim + "88" : C.greenDim + "66") : C.surfaceHigh,
+                border: "1px solid " + (earned ? tierColor + "77" : C.border),
+                borderRadius: 8, padding: "10px 12px", opacity: earned ? 1 : 0.45,
+                boxShadow: earned && a.tier === "gold" ? `0 0 12px ${C.gold}22` : "none",
+              }}>
+                <div style={{ fontSize: 16, marginBottom: 3 }}>{earned ? tierIcon : "🔒"}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: earned ? (a.tier === "gold" ? C.gold : C.text) : C.textDim }}>{a.title}</div>
                 <div style={{ fontSize: 10, color: C.textDim, marginTop: 2, lineHeight: 1.3 }}>{a.desc}</div>
-                {earned && <div style={{ fontSize: 9, color: C.green, marginTop: 4 }}>{earned.unlockedAt}</div>}
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span style={{ fontSize: 9, color: tierColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{a.tier}</span>
+                  {earned && <span style={{ fontSize: 9, color: C.green }}>{earned.unlockedAt}</span>}
+                </div>
               </div>
             );
           })}
@@ -1868,9 +1988,9 @@ function TrendsTab({ data, month }) {
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
-            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
                 const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
@@ -1887,9 +2007,9 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Total Spending — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="total" fill="#C9A227" radius={[2, 2, 0, 0]} name="Total Spent" />
           </BarChart>
         </ResponsiveContainer>
@@ -1902,29 +2022,29 @@ function TrendsTab({ data, month }) {
           <select style={S.sel} value={compareA} onChange={e => setCompareA(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
-          <span style={{ color: "#888", fontSize: 13, padding: "0 4px" }}>vs</span>
+          <span style={{ color: "#7C8CAD", fontSize: 13, padding: "0 4px" }}>vs</span>
           <select style={S.sel} value={compareB} onChange={e => setCompareB(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ ...S.statV, color: "#AAA", fontSize: 20 }}>{fmt(spendA.total)}</div>
-            <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareA)}</div>
+            <div style={{ ...S.statV, color: "#9AABC7", fontSize: 20 }}>{fmt(spendA.total)}</div>
+            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareA)}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ ...S.statV, color: spendB.total > spendA.total ? C.red : C.green, fontSize: 20 }}>{fmt(spendB.total)}</div>
-            <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
+            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
           </div>
         </div>
         {compData.length > 0 && (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={compData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" width={75} tick={{ fill: "#AAA", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
-              <Legend wrapperStyle={{ fontSize: 10, color: "#888" }} />
-              <Bar dataKey={monthLabel(compareA)} fill="#555" radius={[0, 2, 2, 0]} barSize={8} />
+              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={75} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#7C8CAD" }} />
+              <Bar dataKey={monthLabel(compareA)} fill="#5A6A8C" radius={[0, 2, 2, 0]} barSize={8} />
               <Bar dataKey={monthLabel(compareB)} fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} />
             </BarChart>
           </ResponsiveContainer>
@@ -1937,9 +2057,9 @@ function TrendsTab({ data, month }) {
           <div style={S.cTitle}>Category Trends</div>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               {catTrendData.map((c, i) => (
                 <Line key={c.name} type="monotone" dataKey={c.name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
