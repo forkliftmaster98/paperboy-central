@@ -6,6 +6,16 @@ import Papa from "papaparse";
 const STORAGE_KEY = "budget-manager-v3";
 const COLORS = ["#5B8A72","#C9A227","#9C4A3C","#3E7C74","#8B6DB0","#C97B3A","#5A7FA5","#D4756B","#6BAA75","#B8964E","#7A6B8A","#4A90A0"];
 
+// One identity color per category — follows the category through rows, pie slices, and bars
+const CAT_COLORS = {
+  rent: "#E06C75", utilities: "#61AFEF", insurance: "#56B6C2", phone: "#C678DD",
+  subscriptions: "#B48EAD", taxes: "#D19A66", groceries: "#98C379", dining: "#E5C07B",
+  gas: "#DF8E52", shopping: "#EC9DBF", video_games: "#7C7CE8", leisure: "#4DC4B0",
+  personal: "#D879C9", auto: "#5FA8F5", medical: "#E85D75", pet: "#C4A35A",
+  donations: "#F2C14E", transfers: "#8A9BB8", trading: "#63D4A0", cash: "#A0AEC4", misc: "#7A8AA8",
+};
+const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
+
 const DEFAULT_CATEGORIES = [
   { id: "rent", name: "Rent/Mortgage", type: "fixed", budget: 0 },
   { id: "utilities", name: "Utilities", type: "fixed", budget: 0 },
@@ -66,42 +76,42 @@ const DEFAULT_RULES = [
 
 const ACHIEVEMENTS = [
   // Setup
-  { id: "first_income", title: "Income Set", desc: "Added your first income source" },
-  { id: "first_tx", title: "First Log", desc: "Logged your first transaction manually" },
-  { id: "csv_import", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
-  { id: "all_budgets", title: "Budget Ready", desc: "Set budgets for all spending categories" },
+  { id: "first_income", tier: "bronze", title: "Income Set", desc: "Added your first income source" },
+  { id: "first_tx", tier: "bronze", title: "First Log", desc: "Logged your first transaction manually" },
+  { id: "csv_import", tier: "bronze", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
+  { id: "all_budgets", tier: "bronze", title: "Budget Ready", desc: "Set budgets for all spending categories" },
   // Volume
-  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
-  { id: "tx_200", title: "Data Machine", desc: "Logged 200+ transactions" },
+  { id: "tx_50", tier: "silver", title: "Tracking Champ", desc: "Logged 50+ transactions" },
+  { id: "tx_200", tier: "gold", title: "Data Machine", desc: "Logged 200+ transactions" },
   // Savings rate
-  { id: "save_20pct", title: "20% Club", desc: "Saved 20%+ of income in a month" },
-  { id: "save_30pct", title: "30% Club", desc: "Saved 30%+ of income in a month" },
-  { id: "stack_month", title: "Stack Month", desc: "Net positive $500+ in a single month" },
+  { id: "save_20pct", tier: "silver", title: "20% Club", desc: "Saved 20%+ of income in a month" },
+  { id: "save_30pct", tier: "gold", title: "30% Club", desc: "Saved 30%+ of income in a month" },
+  { id: "stack_month", tier: "silver", title: "Stack Month", desc: "Net positive $500+ in a single month" },
   // Budget discipline
-  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
-  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
-  { id: "half_year", title: "Half Year", desc: "Under budget 6 months in a row" },
-  { id: "all_in", title: "All In", desc: "Every category under budget in the same month" },
+  { id: "budget_month", tier: "silver", title: "On Budget", desc: "Stayed under total budget for a full month" },
+  { id: "budget_streak", tier: "silver", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  { id: "half_year", tier: "gold", title: "Half Year", desc: "Under budget 6 months in a row" },
+  { id: "all_in", tier: "gold", title: "All In", desc: "Every category under budget in the same month" },
   // Category discipline
-  { id: "clean_sheet", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
-  { id: "home_chef", title: "Home Chef", desc: "Dining Out under budget for a full month" },
-  { id: "controlled_player", title: "Controlled Player", desc: "Video Games under budget for a full month" },
-  { id: "going_digital", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
-  { id: "budget_nerd", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
+  { id: "clean_sheet", tier: "silver", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
+  { id: "home_chef", tier: "silver", title: "Home Chef", desc: "Dining Out under budget for a full month" },
+  { id: "controlled_player", tier: "silver", title: "Controlled Player", desc: "Video Games under budget for a full month" },
+  { id: "going_digital", tier: "silver", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
+  { id: "budget_nerd", tier: "silver", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
   // Goals & savings
-  { id: "first_goal", title: "Goal Setter", desc: "Created your first savings goal" },
-  { id: "first_deposit", title: "First Deposit", desc: "Made your first savings deposit" },
-  { id: "goal_25", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
-  { id: "goal_50", title: "Halfway There", desc: "Reached 50% on any savings goal" },
-  { id: "goal_100", title: "Goal Crusher", desc: "Fully funded a savings goal" },
-  { id: "goals_3", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
-  { id: "emergency_fund", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
+  { id: "first_goal", tier: "bronze", title: "Goal Setter", desc: "Created your first savings goal" },
+  { id: "first_deposit", tier: "bronze", title: "First Deposit", desc: "Made your first savings deposit" },
+  { id: "goal_25", tier: "silver", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
+  { id: "goal_50", tier: "silver", title: "Halfway There", desc: "Reached 50% on any savings goal" },
+  { id: "goal_100", tier: "gold", title: "Goal Crusher", desc: "Fully funded a savings goal" },
+  { id: "goals_3", tier: "gold", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
+  { id: "emergency_fund", tier: "gold", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
   // Debt
-  { id: "first_debt", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
-  { id: "debt_zero", title: "Debt Slayer", desc: "Paid off a debt completely" },
+  { id: "first_debt", tier: "bronze", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
+  { id: "debt_zero", tier: "gold", title: "Debt Slayer", desc: "Paid off a debt completely" },
   // Character
-  { id: "giving_back", title: "Giving Back", desc: "Made a donation" },
-  { id: "trader", title: "In the Market", desc: "Made a trading or investing transaction" },
+  { id: "giving_back", tier: "bronze", title: "Giving Back", desc: "Made a donation" },
+  { id: "trader", tier: "bronze", title: "In the Market", desc: "Made a trading or investing transaction" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────
@@ -435,18 +445,20 @@ function AchievementToast({ achievement, onDone }) {
     return () => { clearTimeout(dismiss); clearTimeout(remove); };
   }, [onDone]);
 
+  const gold = achievement.tier === "gold";
+  const accent = gold ? C.gold : C.green;
   return (
     <div style={{
       position: "fixed", top: 16, left: "50%", zIndex: 999,
-      background: C.greenDim, border: "1px solid " + C.green,
+      background: gold ? C.goldDim : C.greenDim, border: "1px solid " + accent,
       borderRadius: 12, padding: "12px 18px",
       display: "flex", alignItems: "center", gap: 10,
-      boxShadow: "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
+      boxShadow: gold ? `0 4px 28px ${C.gold}55` : "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
       animation: leaving ? "toastOut 0.45s ease forwards" : "toastIn 0.3s ease both",
     }}>
-      <span style={{ fontSize: 22 }}>🏆</span>
+      <span style={{ fontSize: 22 }}>{gold ? "🏆" : achievement.tier === "silver" ? "🥈" : "🥉"}</span>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>Achievement Unlocked · {achievement.title}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: accent }}>Achievement Unlocked · {achievement.title}</div>
         <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{achievement.desc}</div>
       </div>
     </div>
@@ -905,8 +917,22 @@ function BillCalendar({ recurring, month }) {
 function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIncome, month }) {
   const remaining = totalIncome - totalSpent;
   const overCats = data.categories.filter(c => c.budget > 0 && (catSpend[c.id] || 0) > c.budget);
-  const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
+  const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
   const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
+
+  // All-time stats — the numbers that only grow
+  const allTx = data.transactions;
+  const lifeIncome = allTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const lifeSpent = allTx.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  const lifeNet = lifeIncome - lifeSpent;
+  const monthNets = {};
+  allTx.forEach(t => {
+    const m = monthKey(t.date); if (!m) return;
+    if (!monthNets[m]) monthNets[m] = 0;
+    if (t.type === "income") monthNets[m] += t.amount;
+    else if (!t.isSavingsDeposit) monthNets[m] -= t.amount;
+  });
+  const bestMonth = Object.entries(monthNets).sort((a, b) => b[1] - a[1])[0];
 
   const tips = analyzeFinances(data, month);
   const alertTips = tips.filter(t => t.type !== "good" && t.type !== "goal");
@@ -977,7 +1003,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
           {(totalSaved > 0 || totalDebt > 0) && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>{fmt(totalSaved)} saved · {fmt(totalDebt)} debt</div>}
         </div>
         <div style={S.card}>
-          <div style={{ ...S.statV, color: C.amber, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
+          <div style={{ ...S.statV, color: C.gold, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
           <div style={S.statL}>Achievements</div>
           {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab</div>}
         </div>
@@ -1024,11 +1050,11 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={S.cTitle}>Spending Breakdown</div>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart><Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2} strokeWidth={0}>
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                {pieData.map((d) => <Cell key={d.id} fill={catColor(d.id)} />)}
               </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 10 }}>
-              {pieData.map((d, i) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
+              {pieData.map((d) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(d.id), flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
             </div>
           </div>
         )}
@@ -1048,11 +1074,33 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         )}
       </div>
 
+      {allTx.length > 0 && (
+        <div style={{ ...S.card, borderColor: C.goldDim }}>
+          <div style={{ ...S.cTitle, color: C.gold }}>Since You Started</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: lifeNet >= 0 ? C.green : C.red, fontFamily: "monospace" }}>{fmt(lifeNet)}</div>
+              <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Net Kept</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: C.text, fontFamily: "monospace" }}>{allTx.length.toLocaleString()}</div>
+              <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Tracked</div>
+            </div>
+            {bestMonth && (
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 700, color: C.gold, fontFamily: "monospace" }}>{fmt(bestMonth[1])}</div>
+                <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 2 }}>Best Month · {monthLabel(bestMonth[0])}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={S.card}>
         <div style={S.cTitle}>Recent Transactions</div>
         {monthTx.length === 0 ? <div style={S.empty}>No transactions this month.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th></tr></thead><tbody>
-            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
+            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId) }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1373,7 +1421,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 </div>
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.green, marginBottom: 4 }}>① Deposits & Credits ({csvDepositRows.length}) — classify each one:</div>
                     {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
                       <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
                         ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
@@ -1394,7 +1442,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                             <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
                               <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date]}</td>
                               <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
-                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: C.green }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                               <td style={S.td}>
                                 <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px", borderColor: isBounce ? C.red : isRefund ? C.amber : C.border }}
                                   value={dtype} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
@@ -1464,7 +1512,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
-          <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
+          <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Cat.</th><th style={{ ...S.th, textAlign: "right" }}>Amt</th><th style={{ ...S.th, width: 28 }}></th></tr></thead><tbody>
@@ -1476,7 +1524,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
                   {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
                   {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt</span>}
-                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>pay</span>}
+                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: C.green, color: "#fff" }}>pay</span>}
                   {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
                 </td>
                 <td style={{ ...S.td, maxWidth: 0, width: "25%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>
@@ -1489,14 +1537,14 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </select>
                   ) : (
                     <span
-                      style={{ color: t.type === "income" ? "#5B8A72" : "#7C8CAD", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
+                      style={{ color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
                       title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                       onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
                       {t.categoryName}
                     </span>
                   )}
                 </td>
-                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
+                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", fontSize: 12, whiteSpace: "nowrap", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
                 <td style={{ ...S.td, padding: "10px 6px" }}><button style={S.delBtn} onClick={() => delTx(t.id)}>✕</button></td>
               </tr>
             ))}
@@ -1528,10 +1576,10 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
     const sp = catSpend[c.id] || 0; const over = c.budget > 0 && sp > c.budget;
     return (
       <tr>
-        <td style={S.td}>{c.name}</td>
+        <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
-        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? C.red : C.green)} /></div>}</td>
+        <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div style={S.barF(pct(sp, c.budget), over ? C.red : catColor(c.id))} /></div>}</td>
         <td style={S.td}><button style={S.delBtn} onClick={() => delCat(c.id)}>x</button></td>
       </tr>
     );
@@ -1595,9 +1643,9 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
                   const cat = data.categories.find(c => c.id === r.categoryId);
                   const kws = r.keywords.split(",").map(k => k.trim()).filter(Boolean);
                   return (
-                    <div key={r.id} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "8px 10px", border: "1px solid " + C.border }}>
+                    <div key={r.id} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "8px 10px", border: "1px solid " + C.border, borderLeft: "3px solid " + catColor(r.categoryId) }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: C.green }}>{cat?.name || r.categoryId}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: catColor(r.categoryId) }}>{cat?.name || r.categoryId}</span>
                         <button style={S.delBtn} onClick={() => delRule(r.id)}>✕</button>
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -1711,7 +1759,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
                 <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
-              <div style={S.bar}><div style={S.barF(Math.min(p, 100), completed ? C.green : "#5B8A72")} /></div>
+              <div style={S.bar}><div style={S.barF(Math.min(p, 100), completed ? C.green : C.green)} /></div>
               {needed !== null && (
                 <div style={{ fontSize: 11, color: onPace ? C.green : C.amber, marginTop: 4 }}>
                   {fmt(needed)}/mo needed to hit deadline {!onPace && "-- may need to adjust"}
@@ -1808,17 +1856,27 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={S.cTitle}>Achievements</div>
-          <span style={{ fontSize: 12, color: C.amber, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
+          <span style={{ fontSize: 12, color: C.gold, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {ACHIEVEMENTS.map(a => {
             const earned = achievements.find(e => e.id === a.id);
+            const tierColor = a.tier === "gold" ? C.gold : a.tier === "silver" ? "#A8B4C4" : "#C08552";
+            const tierIcon = a.tier === "gold" ? "🏆" : a.tier === "silver" ? "🥈" : "🥉";
             return (
-              <div key={a.id} style={{ background: earned ? C.greenDim + "66" : C.surfaceHigh, border: "1px solid " + (earned ? C.green + "55" : C.border), borderRadius: 8, padding: "10px 12px", opacity: earned ? 1 : 0.45 }}>
-                <div style={{ fontSize: 16, marginBottom: 3 }}>{earned ? "🏆" : "🔒"}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: earned ? C.text : C.textDim }}>{a.title}</div>
+              <div key={a.id} style={{
+                background: earned ? (a.tier === "gold" ? C.goldDim + "88" : C.greenDim + "66") : C.surfaceHigh,
+                border: "1px solid " + (earned ? tierColor + "77" : C.border),
+                borderRadius: 8, padding: "10px 12px", opacity: earned ? 1 : 0.45,
+                boxShadow: earned && a.tier === "gold" ? `0 0 12px ${C.gold}22` : "none",
+              }}>
+                <div style={{ fontSize: 16, marginBottom: 3 }}>{earned ? tierIcon : "🔒"}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: earned ? (a.tier === "gold" ? C.gold : C.text) : C.textDim }}>{a.title}</div>
                 <div style={{ fontSize: 10, color: C.textDim, marginTop: 2, lineHeight: 1.3 }}>{a.desc}</div>
-                {earned && <div style={{ fontSize: 9, color: C.green, marginTop: 4 }}>{earned.unlockedAt}</div>}
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                  <span style={{ fontSize: 9, color: tierColor, textTransform: "uppercase", letterSpacing: "0.06em" }}>{a.tier}</span>
+                  {earned && <span style={{ fontSize: 9, color: C.green }}>{earned.unlockedAt}</span>}
+                </div>
               </div>
             );
           })}
