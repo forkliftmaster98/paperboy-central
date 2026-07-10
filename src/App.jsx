@@ -950,7 +950,7 @@ function BillCalendar({ recurring, month }) {
             <div key={i} title={bills.map(r => `${r.name} — ${fmt(r.amount)}`).join("\n")} style={{
               borderRadius: 6,
               padding: "4px 2px",
-              minHeight: 38,
+              minHeight: 44,
               background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#151E33" : "#2A1A0E") : "transparent",
               border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
               opacity: past && !bills.length ? 0.35 : 1,
@@ -962,17 +962,15 @@ function BillCalendar({ recurring, month }) {
               </div>
               {bills.map((r, bi) => (
                 <div key={bi} style={{
-                  fontSize: 9,
-                  lineHeight: 1.2,
+                  fontSize: 8,
+                  lineHeight: 1.15,
                   color: past ? C.textDim : C.amber,
                   textAlign: "center",
                   marginTop: 1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  overflowWrap: "break-word",
                   padding: "0 1px",
                 }}>
-                  {r.name.length > 7 ? r.name.slice(0, 6) + "…" : r.name}
+                  {r.name}
                 </div>
               ))}
             </div>
@@ -1012,7 +1010,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const remaining = totalIncome - totalSpent;
   const overCats = data.categories.filter(c => c.budget > 0 && (catSpend[c.id] || 0) > c.budget);
   const pieData = data.categories.filter(c => (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name, value: catSpend[c.id] })).sort((a, b) => b.value - a.value);
-  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
+  const barData = data.categories.filter(c => c.budget > 0 || (catSpend[c.id] || 0) > 0).map(c => ({ id: c.id, name: c.name, budget: c.budget, spent: catSpend[c.id] || 0 }));
 
   // All-time stats — the numbers that only grow
   const allTx = data.transactions;
@@ -1179,10 +1177,10 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         {barData.length > 0 && (
           <div style={S.card}>
             <div style={S.cTitle}>Budget vs Actual</div>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 26)}>
               <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
                 <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
                 <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
                 <Bar dataKey="budget" fill="#243050" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
                 <Bar dataKey="spent" radius={[0, 2, 2, 0]} barSize={8} name="Spent">
@@ -1247,6 +1245,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
   const [depositTypes, setDepositTypes] = useState({});
   const [csvLastBalance, setCsvLastBalance] = useState(null);
   const [csvCat] = useState(data.categories[0]?.id || "");
+  const [csvFilter, setCsvFilter] = useState("");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [recName, setRecName] = useState("");
@@ -1326,10 +1325,10 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
 
         const expenseRows = allParsed
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) < 0)
-          .map(row => {
+          .map((row, i) => {
             const d = row[descCol] || "";
             const matched = autoCategory(d, data.rules || [], data.categories);
-            return { ...row, _catId: matched?.id || csvCat, _matched: !!matched };
+            return { ...row, _catId: matched?.id || csvCat, _matched: !!matched, _rowId: i, _isRetry: /retry pymt/i.test(d), _excluded: false };
           });
 
         const depositRows = allParsed
@@ -1390,6 +1389,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
     const txs = [];
     const debtPayments = [];
     csvRows.forEach(row => {
+      if (row._excluded) return;
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
       const debt = (data.debts || []).find(d => d.id === row._catId);
@@ -1398,8 +1398,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       } else {
         const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
         const desc = row[csvMap.desc] || cat.name || "";
-        const isRetry = /retry pymt/i.test(desc);
-        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: desc, ...(isRetry ? { isRetryCharge: true } : {}) });
+        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: desc, ...(row._isRetry ? { isRetryCharge: true } : {}) });
       }
     });
     csvDepositRows.forEach(row => {
@@ -1582,17 +1581,35 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </div>
                   </div>
                 )}
-                <div style={{ fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 4 }}>② Expenses ({csvRows.length}) — auto-categorized, adjust any that look wrong:</div>
-                <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto", paddingRight: 10 }}>
-                  <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
-                    {csvRows.slice(0, 20).map((row, i) => (
-                      <tr key={i}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.textMid }}>② Expenses ({csvRows.filter(r => !r._excluded).length} of {csvRows.length}) — auto-categorized, adjust or exclude any that look wrong:</span>
+                </div>
+                <input style={{ ...S.inp, fontSize: 12, padding: "6px 10px", marginBottom: 8 }} placeholder="Filter rows to review (e.g. travelers)..." value={csvFilter} onChange={e => setCsvFilter(e.target.value)} />
+                {csvRows.some(r => r._isRetry) && (
+                  <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
+                    ⚠️ "RETRY PYMT" charges detected — if a payment bounced and retried, only the successful attempt should count. Check the box to exclude duplicates.
+                  </div>
+                )}
+                <div style={{ overflowX: "auto", maxHeight: 300, overflowY: "auto", paddingRight: 10 }}>
+                  <table style={S.tbl}><thead><tr><th style={{ ...S.th, width: 30 }}></th><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
+                    {csvRows
+                      .filter(row => !csvFilter || (row[csvMap.desc] || "").toLowerCase().includes(csvFilter.toLowerCase()))
+                      .slice(0, csvFilter ? 200 : 20)
+                      .map((row) => (
+                      <tr key={row._rowId} style={{ opacity: row._excluded ? 0.4 : 1 }}>
+                        <td style={{ ...S.td, textAlign: "center" }}>
+                          <input type="checkbox" checked={!row._excluded} title="Uncheck to exclude this row from import"
+                            onChange={e => { const checked = e.target.checked; setCsvRows(prev => prev.map(r => r._rowId === row._rowId ? { ...r, _excluded: !checked } : r)); }} />
+                        </td>
                         <td style={{ ...S.td, fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date] || "?"}</td>
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
-                        <td style={{ ...S.td, fontSize: 11 }}>{csvMap.desc ? row[csvMap.desc] || "" : ""}</td>
+                        <td style={{ ...S.td, fontSize: 11 }}>
+                          {csvMap.desc ? row[csvMap.desc] || "" : ""}
+                          {row._isRetry && <span style={{ ...S.overB, marginLeft: 4 }}>retry</span>}
+                        </td>
                         <td style={S.td}>
                           <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 100, borderColor: (data.debts||[]).some(d=>d.id===row._catId) ? C.red : C.border }}
-                            value={row._catId} onChange={e => { const updated = [...csvRows]; updated[i] = { ...row, _catId: e.target.value, _matched: false }; setCsvRows(updated); }}>
+                            value={row._catId} onChange={e => { const v = e.target.value; setCsvRows(prev => prev.map(r => r._rowId === row._rowId ? { ...r, _catId: v, _matched: false } : r)); }}>
                             {(data.debts||[]).length > 0 && <optgroup label="Debt Payment">
                               {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
                             </optgroup>}
@@ -1604,12 +1621,12 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       </tr>
                     ))}
                   </tbody></table>
-                  {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#7C8CAD", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
+                  {!csvFilter && csvRows.length > 20 && <div style={{ fontSize: 11, color: "#7C8CAD", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows below (all included unless you filter and exclude them here) — type in the filter box above to find and review specific ones</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
-                  <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
-                  <div style={{ fontSize: 11, color: C.textDim, alignSelf: "center" }}>{csvDepositRows.filter(r => ["bounce","refund","skip"].includes(depositTypes[r._depositId])).length} deposits skipped</div>
-                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); }}>Cancel</button>
+                  <button style={S.btn} onClick={importCSV}>Import {csvRows.filter(r => !r._excluded).length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
+                  <div style={{ fontSize: 11, color: C.textDim, alignSelf: "center" }}>{csvDepositRows.filter(r => ["bounce","refund","skip"].includes(depositTypes[r._depositId])).length} deposits skipped, {csvRows.filter(r => r._excluded).length} expenses excluded</div>
+                  <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvLastBalance(null); setCsvFilter(""); }}>Cancel</button>
                 </div>
               </div>
             )}
@@ -1639,10 +1656,8 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
             {filtered.map(t => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 0", borderBottom: "1px solid " + C.border, background: t.type === "income" ? "rgba(46,204,113,0.06)" : "transparent" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 10, color: "#7C8CAD", flexShrink: 0 }}>{t.date.slice(5)}</span>
-                    <span style={{ fontSize: 13, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={t.description}>{t.description}</span>
-                  </div>
+                  <div style={{ fontFamily: "monospace", fontSize: 10, color: "#7C8CAD" }}>{t.date}</div>
+                  <div style={{ fontSize: 13, color: C.text, wordBreak: "break-word" }}>{t.description}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
                     {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
                       <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }}
@@ -2087,7 +2102,7 @@ function TrendsTab({ data, month }) {
 
   const compData = data.categories
     .filter(c => (spendA.totals[c.id] || 0) > 0 || (spendB.totals[c.id] || 0) > 0)
-    .map(c => ({ name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, [monthLabel(compareA)]: spendA.totals[c.id] || 0, [monthLabel(compareB)]: spendB.totals[c.id] || 0 }));
+    .map(c => ({ name: c.name, [monthLabel(compareA)]: spendA.totals[c.id] || 0, [monthLabel(compareB)]: spendB.totals[c.id] || 0 }));
 
   // Report card grades the viewed month if complete, otherwise the previous one
   const gradeTarget = month < curMonth() ? month : shiftMonthStr(month, -1);
@@ -2169,10 +2184,10 @@ function TrendsTab({ data, month }) {
           </div>
         </div>
         {compData.length > 0 && (
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="100%" height={Math.max(220, compData.length * 26)}>
             <BarChart data={compData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
               <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" width={75} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
               <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
               <Legend wrapperStyle={{ fontSize: 10, color: "#7C8CAD" }} />
               <Bar dataKey={monthLabel(compareA)} fill="#5A6A8C" radius={[0, 2, 2, 0]} barSize={8} />
