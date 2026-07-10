@@ -115,7 +115,7 @@ function autoCategory(desc, rules, categories) {
 function analyzeFinances(data, month) {
   const tips = [];
   const income = getMonthlyIncome(data.incomes);
-  const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income");
+  const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income" && !t.isDebtPayment);
   const spent = txs.reduce((s, t) => s + t.amount, 0);
   const cSpend = {};
   data.categories.forEach(c => { cSpend[c.id] = 0; });
@@ -200,7 +200,7 @@ function checkAchievements(data) {
   const totalBudget = (data.categories || []).reduce((s, c) => s + c.budget, 0);
   let streak = 0;
   months.forEach(m => {
-    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m && t.type !== "income");
+    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const spent = txs.reduce((s, t) => s + t.amount, 0);
     if (income > 0) {
       const savedPct = (income - spent) / income;
@@ -386,7 +386,7 @@ export default function BudgetManager() {
   const catSpend = useMemo(() => {
     if (!data) return {};
     const t = {}; data.categories.forEach(c => { t[c.id] = 0; });
-    monthTx.filter(tx => tx.type !== "income").forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
+    monthTx.filter(tx => tx.type !== "income" && !tx.isDebtPayment).forEach(tx => { t[tx.categoryId] = (t[tx.categoryId] || 0) + tx.amount; });
     return t;
   }, [data, monthTx]);
   const totalSpent = useMemo(() => Object.values(catSpend).reduce((s, v) => s + v, 0), [catSpend]);
@@ -420,6 +420,21 @@ export default function BudgetManager() {
   const addDbt = (d) => save({ ...data, debts: [...data.debts, { ...d, id: uid() }] });
   const updDbt = (id, u) => save({ ...data, debts: data.debts.map(d => d.id === id ? { ...d, ...u } : d) });
   const delDbt = (id) => save({ ...data, debts: data.debts.filter(d => d.id !== id) });
+  // Log a debt payment transaction AND reduce the debt balance
+  const payDebt = (debt, amount, date, description) => {
+    const tx = { id: uid(), date: date || todayStr(), amount, categoryId: "debt_payment", categoryName: `Payment: ${debt.name}`, description: description || `Payment: ${debt.name}`, isDebtPayment: true, debtId: debt.id };
+    const newBalance = Math.max(0, debt.balance - amount);
+    save({ ...data, debts: data.debts.map(d => d.id === debt.id ? { ...d, balance: newBalance } : d), transactions: [...data.transactions, tx] });
+  };
+  // Apply debt payments from a batch (used by CSV import)
+  const applyDebtPayments = (payments) => {
+    let newDebts = [...data.debts];
+    const txs = payments.map(({ debt, amount, date, description }) => {
+      newDebts = newDebts.map(d => d.id === debt.id ? { ...d, balance: Math.max(0, d.balance - amount) } : d);
+      return { id: uid(), date: date || todayStr(), amount, categoryId: "debt_payment", categoryName: `Payment: ${debt.name}`, description: description || `Payment: ${debt.name}`, isDebtPayment: true, debtId: debt.id };
+    });
+    save({ ...data, debts: newDebts, transactions: [...data.transactions, ...txs] });
+  };
   const addRule = (r) => save({ ...data, rules: [...(data.rules || []), { ...r, id: uid() }] });
   const delRule = (id) => save({ ...data, rules: (data.rules || []).filter(r => r.id !== id) });
   const addRecurring = (r) => save({ ...data, recurring: [...(data.recurring || []), { ...r, id: uid() }] });
@@ -449,7 +464,7 @@ export default function BudgetManager() {
 
         <div style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
           {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
@@ -862,10 +877,11 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 // ════════════════════════════════════════════════════════
 //  TRANSACTIONS + CSV + RECURRING
 // ════════════════════════════════════════════════════════
-function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, delRecurring }) {
+function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, delRecurring, payDebt, applyDebtPayments }) {
   const [date, setDate] = useState(todayStr());
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState(data.categories[0]?.id || "");
+  const [debtId, setDebtId] = useState("__none__");
   const [desc, setDesc] = useState("");
   const [csvMode, setCsvMode] = useState(false);
   const [recurringMode, setRecurringMode] = useState(false);
@@ -893,10 +909,15 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
 
   const handleAdd = () => {
     const a = parseFloat(amount);
-    if (!a || a <= 0 || !catId) return;
-    const cat = data.categories.find(c => c.id === catId);
-    addTx({ date, amount: a, categoryId: catId, categoryName: cat?.name || catId, description: desc || cat?.name || "" });
-    setAmount(""); setDesc("");
+    if (!a || a <= 0) return;
+    const debt = debtId !== "__none__" ? (data.debts || []).find(d => d.id === debtId) : null;
+    if (debt) {
+      payDebt(debt, a, date, desc || `Payment: ${debt.name}`);
+    } else {
+      const cat = data.categories.find(c => c.id === catId);
+      addTx({ date, amount: a, categoryId: catId, categoryName: cat?.name || catId, description: desc || cat?.name || "" });
+    }
+    setAmount(""); setDesc(""); setDebtId("__none__");
   };
 
   const handleCSV = (file) => {
@@ -989,11 +1010,17 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
   const importCSV = () => {
     if (!csvData || !csvMap.date || !csvMap.amount) return;
     const txs = [];
+    const debtPayments = [];
     csvRows.forEach(row => {
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
-      const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
-      txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+      const debt = (data.debts || []).find(d => d.id === row._catId);
+      if (debt) {
+        debtPayments.push({ debt, amount: amt, date: parseRowDate(row), description: row[csvMap.desc] || `Payment: ${debt.name}` });
+      } else {
+        const cat = data.categories.find(c => c.id === row._catId) || data.categories[0];
+        txs.push({ date: parseRowDate(row), amount: amt, categoryId: cat.id, categoryName: cat.name, description: row[csvMap.desc] || cat.name || "" });
+      }
     });
     csvDepositRows.forEach(row => {
       const dtype = depositTypes[row._depositId];
@@ -1004,6 +1031,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
       txs.push({ date: parseRowDate(row), amount: amt, categoryId: "income", categoryName: isExtra ? "Extra Income" : "Income", description: row[csvMap.desc] || "Deposit", type: "income", incomeKind: dtype });
     });
     if (txs.length > 0) addTxBatch(txs, true);
+    if (debtPayments.length > 0) applyDebtPayments(debtPayments);
     setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); setCsvMode(false);
   };
 
@@ -1043,8 +1071,17 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
             <input type="date" style={S.inpSm} value={date} onChange={e => setDate(e.target.value)} />
             <input type="number" style={{ ...S.inpSm, width: 90 }} placeholder="$" value={amount} onChange={e => setAmount(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} step="0.01" min="0" />
             <input type="text" style={S.inp} placeholder="Description (auto-categorizes)" value={desc} onChange={e => setDesc(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAdd()} />
-            <select style={S.sel} value={catId} onChange={e => setCatId(e.target.value)}>
-              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <select style={{ ...S.sel, borderColor: debtId !== "__none__" ? C.red : C.border }} value={debtId !== "__none__" ? debtId : catId} onChange={e => {
+              const v = e.target.value;
+              const isDebt = (data.debts || []).some(d => d.id === v);
+              if (isDebt) { setDebtId(v); } else { setDebtId("__none__"); setCatId(v); }
+            }}>
+              {(data.debts || []).length > 0 && <optgroup label="Debt Payment">
+                {(data.debts || []).map(d => <option key={d.id} value={d.id}>💳 Pay: {d.name}</option>)}
+              </optgroup>}
+              <optgroup label="Expense Category">
+                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
             </select>
             <button style={S.btn} onClick={handleAdd}>Add</button>
           </div>
@@ -1141,9 +1178,14 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
                         <td style={{ ...S.td, fontSize: 11 }}>{csvMap.desc ? row[csvMap.desc] || "" : ""}</td>
                         <td style={S.td}>
-                          <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 90 }} value={row._catId}
-                            onChange={e => { const updated = [...csvRows]; updated[i] = { ...row, _catId: e.target.value, _matched: false }; setCsvRows(updated); }}>
-                            {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          <select style={{ ...S.sel, padding: "2px 6px", fontSize: 11, minWidth: 100, borderColor: (data.debts||[]).some(d=>d.id===row._catId) ? C.red : C.border }}
+                            value={row._catId} onChange={e => { const updated = [...csvRows]; updated[i] = { ...row, _catId: e.target.value, _matched: false }; setCsvRows(updated); }}>
+                            {(data.debts||[]).length > 0 && <optgroup label="Debt Payment">
+                              {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
+                            </optgroup>}
+                            <optgroup label="Expense">
+                              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </optgroup>
                           </select>
                         </td>
                       </tr>
@@ -1182,7 +1224,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt pmt</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1463,7 +1505,7 @@ function TrendsTab({ data, month }) {
   const [compareB, setCompareB] = useState(month);
 
   const getMonthSpend = useCallback((m) => {
-    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income");
+    const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const totals = {};
     data.categories.forEach(c => { totals[c.id] = 0; });
     txs.forEach(t => { totals[t.categoryId] = (totals[t.categoryId] || 0) + t.amount; });
