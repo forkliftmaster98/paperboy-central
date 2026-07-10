@@ -65,15 +65,30 @@ const DEFAULT_RULES = [
 ];
 
 const ACHIEVEMENTS = [
+  // Setup
   { id: "first_income", title: "Income Set", desc: "Added your first income source" },
   { id: "first_tx", title: "First Log", desc: "Logged your first transaction manually" },
   { id: "csv_import", title: "CSV Pro", desc: "Imported transactions from a CSV file" },
-  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
   { id: "all_budgets", title: "Budget Ready", desc: "Set budgets for all spending categories" },
-  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
-  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  // Volume
+  { id: "tx_50", title: "Tracking Champ", desc: "Logged 50+ transactions" },
+  { id: "tx_200", title: "Data Machine", desc: "Logged 200+ transactions" },
+  // Savings rate
   { id: "save_20pct", title: "20% Club", desc: "Saved 20%+ of income in a month" },
   { id: "save_30pct", title: "30% Club", desc: "Saved 30%+ of income in a month" },
+  { id: "stack_month", title: "Stack Month", desc: "Net positive $500+ in a single month" },
+  // Budget discipline
+  { id: "budget_month", title: "On Budget", desc: "Stayed under total budget for a full month" },
+  { id: "budget_streak", title: "Budget Streak", desc: "Under budget 3 months in a row" },
+  { id: "half_year", title: "Half Year", desc: "Under budget 6 months in a row" },
+  { id: "all_in", title: "All In", desc: "Every category under budget in the same month" },
+  // Category discipline
+  { id: "clean_sheet", title: "Clean Sheet", desc: "Zero Misc spending for a full month" },
+  { id: "home_chef", title: "Home Chef", desc: "Dining Out under budget for a full month" },
+  { id: "controlled_player", title: "Controlled Player", desc: "Video Games under budget for a full month" },
+  { id: "going_digital", title: "Going Digital", desc: "No ATM / Cash withdrawals for a full month" },
+  { id: "budget_nerd", title: "Budget Nerd", desc: "Used 10+ different categories in one month" },
+  // Goals & savings
   { id: "first_goal", title: "Goal Setter", desc: "Created your first savings goal" },
   { id: "first_deposit", title: "First Deposit", desc: "Made your first savings deposit" },
   { id: "goal_25", title: "Quarter Way", desc: "Reached 25% on any savings goal" },
@@ -81,7 +96,12 @@ const ACHIEVEMENTS = [
   { id: "goal_100", title: "Goal Crusher", desc: "Fully funded a savings goal" },
   { id: "goals_3", title: "Serial Saver", desc: "Fully funded 3 savings goals" },
   { id: "emergency_fund", title: "Safety Net", desc: "Saved 3 months of income as an emergency fund" },
+  // Debt
   { id: "first_debt", title: "Debt Fighter", desc: "Started tracking a debt to pay off" },
+  { id: "debt_zero", title: "Debt Slayer", desc: "Paid off a debt completely" },
+  // Character
+  { id: "giving_back", title: "Giving Back", desc: "Made a donation" },
+  { id: "trader", title: "In the Market", desc: "Made a trading or investing transaction" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────
@@ -194,9 +214,11 @@ function checkAchievements(data) {
 
   if (data.incomes.length > 0) unlock("first_income");
 
-  const manualTxs = (data.transactions || []).filter(t => !t.fromRecurring && !t.isSavingsDeposit);
+  const allTxs = data.transactions || [];
+  const manualTxs = allTxs.filter(t => !t.fromRecurring && !t.isSavingsDeposit);
   if (manualTxs.length > 0) unlock("first_tx");
   if (manualTxs.length >= 50) unlock("tx_50");
+  if (manualTxs.length >= 200) unlock("tx_200");
 
   if (data.csvImported) unlock("csv_import");
 
@@ -204,7 +226,7 @@ function checkAchievements(data) {
   if (spendCats.length > 0 && spendCats.every(c => c.budget > 0)) unlock("all_budgets");
 
   if ((data.savings || []).length > 0) unlock("first_goal");
-  if ((data.transactions || []).some(t => t.isSavingsDeposit)) unlock("first_deposit");
+  if (allTxs.some(t => t.isSavingsDeposit)) unlock("first_deposit");
 
   if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.25)) unlock("goal_25");
   if ((data.savings || []).some(g => g.target > 0 && g.saved >= g.target * 0.5)) unlock("goal_50");
@@ -213,29 +235,66 @@ function checkAchievements(data) {
   if (completedGoals.length >= 3) unlock("goals_3");
 
   if ((data.debts || []).length > 0) unlock("first_debt");
+  if ((data.debts || []).some(d => d.balance === 0)) unlock("debt_zero");
+
+  if (allTxs.some(t => t.categoryId === "donations")) unlock("giving_back");
+  if (allTxs.some(t => t.categoryId === "trading")) unlock("trader");
 
   const income = getMonthlyIncome(data.incomes);
   const totalSaved = (data.savings || []).reduce((s, g) => s + g.saved, 0);
   if (income > 0 && totalSaved >= income * 3) unlock("emergency_fund");
 
-  const months = [...new Set((data.transactions || []).map(t => monthKey(t.date)))].filter(Boolean).sort();
+  const months = [...new Set(allTxs.map(t => monthKey(t.date)))].filter(Boolean).sort();
   const totalBudget = (data.categories || []).reduce((s, c) => s + c.budget, 0);
+  const catMap = new Map((data.categories || []).map(c => [c.id, c]));
   let streak = 0;
+
   months.forEach(m => {
-    const txs = (data.transactions || []).filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
+    const txs = allTxs.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const spent = txs.reduce((s, t) => s + t.amount, 0);
+
+    // Per-category spend this month
+    const cSpend = {};
+    txs.forEach(t => { cSpend[t.categoryId] = (cSpend[t.categoryId] || 0) + t.amount; });
+
     if (income > 0) {
-      const savedPct = (income - spent) / income;
+      const net = income - spent;
+      const savedPct = net / income;
       if (savedPct >= 0.2) unlock("save_20pct");
       if (savedPct >= 0.3) unlock("save_30pct");
+      if (net >= 500) unlock("stack_month");
     }
+
     if (totalBudget > 0 && spent <= totalBudget) {
       unlock("budget_month");
       streak++;
       if (streak >= 3) unlock("budget_streak");
+      if (streak >= 6) unlock("half_year");
     } else {
       streak = 0;
     }
+
+    // All individual categories under budget
+    const budgetedCats = (data.categories || []).filter(c => c.budget > 0);
+    if (budgetedCats.length >= 3 && budgetedCats.every(c => (cSpend[c.id] || 0) <= c.budget)) unlock("all_in");
+
+    // Clean Sheet: zero Misc spend
+    if (!(cSpend["misc"] > 0)) unlock("clean_sheet");
+
+    // Dining under budget
+    const diningCat = catMap.get("dining");
+    if (diningCat && diningCat.budget > 0 && (cSpend["dining"] || 0) <= diningCat.budget) unlock("home_chef");
+
+    // Video Games under budget
+    const vgCat = catMap.get("video_games");
+    if (vgCat && vgCat.budget > 0 && (cSpend["video_games"] || 0) <= vgCat.budget) unlock("controlled_player");
+
+    // No cash/ATM withdrawals
+    if (!(cSpend["cash"] > 0)) unlock("going_digital");
+
+    // 10+ distinct categories used
+    const usedCats = new Set(txs.map(t => t.categoryId));
+    if (usedCats.size >= 10) unlock("budget_nerd");
   });
 
   return newIds;
@@ -272,17 +331,17 @@ const S = {
   navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border },
-  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border },
+  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
   inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
   inpSm: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", width: 105 },
   sel: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 110 },
-  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
-  btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
-  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit" },
-  btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
+  btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s, transform 0.12s" },
+  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s, color 0.15s" },
+  btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
   tbl: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: { textAlign: "left", padding: "8px 12px", borderBottom: "1px solid " + C.border, color: C.textDim, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" },
   td: { padding: "10px 12px", borderBottom: "1px solid " + C.border, color: C.textMid },
@@ -293,7 +352,7 @@ const S = {
   overB: { display: "inline-block", background: C.redDim, color: C.red, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
   underB: { display: "inline-block", background: C.greenDim, color: C.green, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
   empty: { color: C.textDim, fontSize: 13, padding: "20px 0", textAlign: "center" },
-  delBtn: { background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 15, padding: "2px 6px" },
+  delBtn: { background: "none", border: "none", color: C.textDim, cursor: "pointer", fontSize: 15, padding: "2px 6px", transition: "color 0.15s, transform 0.12s" },
   pbFloat: { position: "fixed", bottom: 72, right: 16, zIndex: 200 },
   pbBtn: { width: 52, height: 52, borderRadius: "50%", background: C.greenDim, border: "2px solid " + C.green, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 24px rgba(34,197,94,0.25)", transition: "transform 0.15s" },
   pbPanel: { position: "fixed", bottom: 134, right: 12, width: 320, maxWidth: "calc(100vw - 24px)", maxHeight: "65vh", background: C.surface, border: "1px solid " + C.border, borderRadius: 16, boxShadow: "0 8px 40px rgba(0,0,0,0.7)", display: "flex", flexDirection: "column", zIndex: 201 },
@@ -305,6 +364,42 @@ const S = {
   pbQBtn: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 16, padding: "5px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" },
   tipCard: (type) => ({ padding: "10px 14px", borderRadius: 8, fontSize: 13, lineHeight: 1.5, background: type === "good" ? C.greenDim + "44" : type === "warning" || type === "over" ? "#78350F44" : type === "danger" ? C.redDim + "44" : C.blueDim + "44", borderLeft: "3px solid " + (type === "good" ? C.green : type === "warning" || type === "over" ? C.amber : type === "danger" ? C.red : C.blue), marginBottom: 8, color: C.text }),
 };
+
+// ── Global animations injected once ──────────────────────
+const GLOBAL_CSS = `
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, -18px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to   { opacity: 0; transform: translate(-50%, -12px); }
+}
+@keyframes barGrow {
+  from { width: 0% !important; }
+}
+.pb-btn:hover { transform: scale(1.08); }
+.pb-btn:active { transform: scale(0.96); }
+.app-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.app-card:hover { border-color: #3A3A3A !important; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+.app-btn { transition: opacity 0.15s, transform 0.12s; }
+.app-btn:hover { opacity: 0.88; }
+.app-btn:active { transform: scale(0.97); }
+.app-btn-ghost { transition: background 0.15s, color 0.15s; }
+.app-btn-ghost:hover { background: #2A2A2A !important; color: #C8D5E0 !important; }
+.nav-item { transition: color 0.18s; }
+.nav-dot { transition: opacity 0.25s, transform 0.25s; }
+.del-btn { transition: color 0.15s, transform 0.12s; }
+.del-btn:hover { color: #EF4444 !important; transform: scale(1.15); }
+`;
+
+function GlobalStyles() {
+  return <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />;
+}
 
 // ── PaperBoy SVG ──────────────────────────────────────────
 function PaperBoySVG({ size = 40 }) {
@@ -328,16 +423,27 @@ function PaperBoySVG({ size = 40 }) {
 
 // ── Achievement Toast ─────────────────────────────────────
 function AchievementToast({ achievement, onDone }) {
+  const [leaving, setLeaving] = useState(false);
+
   useEffect(() => {
-    const t = setTimeout(onDone, 4000);
-    return () => clearTimeout(t);
+    const dismiss = setTimeout(() => setLeaving(true), 3400);
+    const remove = setTimeout(onDone, 3900);
+    return () => { clearTimeout(dismiss); clearTimeout(remove); };
   }, [onDone]);
+
   return (
-    <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 999, background: C.greenDim, border: "1px solid " + C.green, borderRadius: 12, padding: "12px 18px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 4px 24px rgba(34,197,94,0.3)", maxWidth: 320, animation: "none" }}>
+    <div style={{
+      position: "fixed", top: 16, left: "50%", zIndex: 999,
+      background: C.greenDim, border: "1px solid " + C.green,
+      borderRadius: 12, padding: "12px 18px",
+      display: "flex", alignItems: "center", gap: 10,
+      boxShadow: "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
+      animation: leaving ? "toastOut 0.45s ease forwards" : "toastIn 0.3s ease both",
+    }}>
       <span style={{ fontSize: 22 }}>🏆</span>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>{achievement.title}</div>
-        <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>{achievement.desc}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color: C.green }}>Achievement Unlocked · {achievement.title}</div>
+        <div style={{ fontSize: 11, color: C.textMid, marginTop: 2 }}>{achievement.desc}</div>
       </div>
     </div>
   );
@@ -497,18 +603,19 @@ export default function BudgetManager() {
 
   return (
     <div style={S.root}>
+      <GlobalStyles />
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <div style={S.wrap}>
         <div style={S.hdr}>
           <h1 style={S.h1}>PaperBoy Central</h1>
           <div style={S.monthNav}>
-            <button style={S.mBtn} onClick={() => shiftMonth(-1)}>&#8249;</button>
+            <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(-1)}>&#8249;</button>
             <span style={S.mLbl}>{monthLabelLong(month)}</span>
-            <button style={S.mBtn} onClick={() => shiftMonth(1)}>&#8250;</button>
+            <button style={S.mBtn} className="app-btn-ghost" onClick={() => shiftMonth(1)}>&#8250;</button>
           </div>
         </div>
 
-        <div style={S.page}>
+        <div key={tab} style={{ ...S.page, animation: "fadeUp 0.16s ease both" }}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
           {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
@@ -520,9 +627,10 @@ export default function BudgetManager() {
       {/* Bottom nav */}
       <nav style={S.bottomNav}>
         {NAV.map((n, i) => (
-          <button key={n.label} style={S.navItem(i === tab)} onClick={() => setTab(i)}>
+          <button key={n.label} className="nav-item" style={S.navItem(i === tab)} onClick={() => setTab(i)}>
             {n.icon(i === tab)}
             <span style={S.navLabel(i === tab)}>{n.label}</span>
+            <span className="nav-dot" style={{ width: 3, height: 3, borderRadius: "50%", background: C.green, opacity: i === tab ? 1 : 0, transform: i === tab ? "scale(1)" : "scale(0)", marginTop: 1 }} />
           </button>
         ))}
       </nav>
