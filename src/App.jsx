@@ -1554,7 +1554,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       </div>
                     )}
                     <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto", paddingRight: 10 }}>
-                      <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
+                      <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
                         {csvDepositRows.map(row => {
                           const dtype = depositTypes[row._depositId] || "extra";
                           const isBounce = dtype === "bounce";
@@ -1573,6 +1573,10 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                                   <option value="bounce">⚠️ Bounced Pmt Return</option>
                                   <option value="skip">Skip</option>
                                 </select>
+                              </td>
+                              <td style={S.td}>
+                                <button className="del-btn" style={S.delBtn} title="Remove this row from the preview entirely — it will not be imported"
+                                  onClick={() => setCsvDepositRows(prev => prev.filter(r => r._depositId !== row._depositId))}>✕</button>
                               </td>
                             </tr>
                           );
