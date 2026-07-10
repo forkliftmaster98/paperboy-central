@@ -301,21 +301,25 @@ function checkAchievements(data) {
 }
 
 // ── Design tokens ─────────────────────────────────────────
+// Deep blue-slate foundation: dark but warm, not a black void
 const C = {
-  bg: "#0A0A0A",
-  surface: "#141414",
-  surfaceHigh: "#1E1E1E",
-  border: "#2A2A2A",
-  green: "#22C55E",
+  bg: "#0B1120",
+  surface: "#121A2C",
+  surfaceHigh: "#1B2540",
+  border: "#243050",
+  borderGlow: "#33426B",
+  green: "#2ECC71",
   greenDim: "#14532D",
-  blue: "#3B82F6",
+  gold: "#E3B341",
+  goldDim: "#4A3A12",
+  blue: "#4C8DF6",
   blueDim: "#1E3A8A",
   red: "#EF4444",
   redDim: "#7F1D1D",
   amber: "#F59E0B",
-  text: "#F1F5F9",
-  textMid: "#94A3B8",
-  textDim: "#7A8FA6",
+  text: "#EDF2FA",
+  textMid: "#9AABC7",
+  textDim: "#64748F",
 };
 
 // ── Styles ────────────────────────────────────────────────
@@ -331,8 +335,8 @@ const S = {
   navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: C.surface, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
-  cardFlush: { background: C.surface, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  card: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
   inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
@@ -385,12 +389,12 @@ const GLOBAL_CSS = `
 .pb-btn:hover { transform: scale(1.08); }
 .pb-btn:active { transform: scale(0.96); }
 .app-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
-.app-card:hover { border-color: #3A3A3A !important; box-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+.app-card:hover { border-color: #33426B !important; box-shadow: 0 2px 14px rgba(0,0,0,0.4); }
 .app-btn { transition: opacity 0.15s, transform 0.12s; }
 .app-btn:hover { opacity: 0.88; }
 .app-btn:active { transform: scale(0.97); }
 .app-btn-ghost { transition: background 0.15s, color 0.15s; }
-.app-btn-ghost:hover { background: #2A2A2A !important; color: #C8D5E0 !important; }
+.app-btn-ghost:hover { background: #243050 !important; color: #C8D5E0 !important; }
 .nav-item { transition: color 0.18s; }
 .nav-dot { transition: opacity 0.25s, transform 0.25s; }
 .del-btn { transition: color 0.15s, transform 0.12s; }
@@ -542,7 +546,7 @@ export default function BudgetManager() {
     return manual + deposits;
   }, [data, monthTx]);
 
-  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#888" }}>Loading...</p></div>;
+  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#7C8CAD" }}>Loading...</p></div>;
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
@@ -775,14 +779,14 @@ function PaperBoyPanel({ data, month, catSpend, totalSpent, totalIncome, onClose
           <PaperBoySVG size={24} />
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1 }}>PaperBoy</div>
-            <div style={{ fontSize: 10, color: "#888" }}>Financial Advisor</div>
+            <div style={{ fontSize: 10, color: "#7C8CAD" }}>Financial Advisor</div>
           </div>
         </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 18 }}>x</button>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "#7C8CAD", cursor: "pointer", fontSize: 18 }}>x</button>
       </div>
       <div ref={bodyRef} style={S.pbBody}>
         {messages.map((m, i) => <div key={i} style={S.pbMsg(m.role === "user")}>{m.text}</div>)}
-        {thinking && <div style={{ ...S.pbMsg(false), color: "#888" }}>Crunching numbers...</div>}
+        {thinking && <div style={{ ...S.pbMsg(false), color: "#7C8CAD" }}>Crunching numbers...</div>}
       </div>
       {/* Quick prompts */}
       {messages.length <= 1 && !thinking && (
@@ -841,7 +845,7 @@ function BillCalendar({ recurring, month }) {
               borderRadius: 6,
               padding: "4px 2px",
               minHeight: 38,
-              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#1A1A1A" : "#2A1A0E") : "transparent",
+              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#151E33" : "#2A1A0E") : "transparent",
               border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
               opacity: past && !bills.length ? 0.35 : 1,
               cursor: bills.length ? "default" : "default",
@@ -998,7 +1002,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#AAA" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#9AABC7" }}>
             <span style={{ ...S.cTitle, marginBottom: 0 }}>Budget Health</span>
             <span style={{ color: (totalBudgeted - totalSpent) < 0 ? C.red : C.green }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
           </div>
@@ -1021,7 +1025,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <ResponsiveContainer width="100%" height={200}>
               <PieChart><Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2} strokeWidth={0}>
                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} /></PieChart>
+              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 10 }}>
               {pieData.map((d, i) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
@@ -1033,10 +1037,10 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={S.cTitle}>Budget vs Actual</div>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#AAA", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
-                <Bar dataKey="budget" fill="#333" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
+                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={70} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+                <Bar dataKey="budget" fill="#243050" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
                 <Bar dataKey="spent" fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} name="Spent" />
               </BarChart>
             </ResponsiveContainer>
@@ -1048,7 +1052,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={S.cTitle}>Recent Transactions</div>
         {monthTx.length === 0 ? <div style={S.empty}>No transactions this month.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th></tr></thead><tbody>
-            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
+            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1309,7 +1313,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
+            <div style={{ fontSize: 12, color: "#9AABC7", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
@@ -1321,7 +1325,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
             </div>
             {(data.recurring || []).length === 0 ? <div style={S.empty}>No recurring transactions set.</div> : (
               <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#888" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#888" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
+                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
             )}
           </div>
@@ -1334,10 +1338,10 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={e => e.target.files[0] && handleCSV(e.target.files[0])} />
                 <div onClick={() => fileRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#C9A227"; }}
-                  onDragLeave={e => { e.currentTarget.style.borderColor = "#333"; }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#333"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
-                  style={{ border: "2px dashed #333", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#888", fontSize: 13 }}>
-                  Drop CSV here or click to browse<br/><span style={{ fontSize: 11, color: "#555" }}>Bank: Account &gt; Activity &gt; Download/Export</span>
+                  onDragLeave={e => { e.currentTarget.style.borderColor = "#33426B"; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#33426B"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
+                  style={{ border: "2px dashed #33426B", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#7C8CAD", fontSize: 13 }}>
+                  Drop CSV here or click to browse<br/><span style={{ fontSize: 11, color: "#5A6A8C" }}>Bank: Account &gt; Activity &gt; Download/Export</span>
                 </div>
               </div>
             ) : (
@@ -1345,7 +1349,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 <div style={{ ...S.row, gap: 8, marginBottom: 10 }}>
                   {["date", "amount", "desc"].map(field => (
                     <div key={field} style={{ flex: 1 }}>
-                      <label style={{ fontSize: 10, color: "#888", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
+                      <label style={{ fontSize: 10, color: "#7C8CAD", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
                       <select style={{ ...S.sel, width: "100%" }} value={csvMap[field]} onChange={e => {
                         const newMap = { ...csvMap, [field]: e.target.value };
                         setCsvMap(newMap);
@@ -1364,7 +1368,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: "#888", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "#7C8CAD", marginBottom: 6 }}>
                   {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
                 </div>
                 {csvDepositRows.length > 0 && (
@@ -1388,7 +1392,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                           const isRefund = dtype === "refund";
                           return (
                             <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
-                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date]}</td>
                               <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
                               <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                               <td style={S.td}>
@@ -1413,7 +1417,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
                       <tr key={i}>
-                        <td style={{ ...S.td, fontSize: 11, color: "#888" }}>{row[csvMap.date] || "?"}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date] || "?"}</td>
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
                         <td style={{ ...S.td, fontSize: 11 }}>{csvMap.desc ? row[csvMap.desc] || "" : ""}</td>
                         <td style={S.td}>
@@ -1430,7 +1434,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       </tr>
                     ))}
                   </tbody></table>
-                  {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#888", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
+                  {csvRows.length > 20 && <div style={{ fontSize: 11, color: "#7C8CAD", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows (all will be imported)</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
@@ -1460,13 +1464,13 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
-          <span style={{ fontSize: 12, color: "#888", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
+          <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: "#5B8A72", marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Cat.</th><th style={{ ...S.th, textAlign: "right" }}>Amt</th><th style={{ ...S.th, width: 28 }}></th></tr></thead><tbody>
             {filtered.map(t => (
               <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
-                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#888", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
+                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 10, color: "#7C8CAD", whiteSpace: "nowrap", paddingRight: 4 }}>{t.date.slice(5)}</td>
                 <td style={{ ...S.td, maxWidth: 0, width: "45%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   <span title={t.description}>{t.description}</span>
                   {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
@@ -1485,7 +1489,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                     </select>
                   ) : (
                     <span
-                      style={{ color: t.type === "income" ? "#5B8A72" : "#888", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #444" : "none" }}
+                      style={{ color: t.type === "income" ? "#5B8A72" : "#7C8CAD", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
                       title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                       onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
                       {t.categoryName}
@@ -1545,8 +1549,8 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {data.incomes.length === 0 ? <div style={S.empty}>No income sources.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Source</th><th style={S.th}>Amount</th><th style={S.th}>Freq</th><th style={S.th}>Monthly Est.</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#888" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
-            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #333" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #333" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
+            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
+            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #243050" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #243050" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
           </tbody></table>
         )}
       </div>
@@ -1577,7 +1581,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {showRules && (
           <div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
+            <div style={{ fontSize: 12, color: "#7C8CAD", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
@@ -1701,9 +1705,9 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             <div key={g.id} style={{ padding: "12px 0", borderBottom: "1px solid #222" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                 <span style={{ fontWeight: 500 }}>{g.name}{completed && <span style={{ marginLeft: 6, background: C.green, color: "#000", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99 }}>FUNDED</span>}</span>
-                <span style={{ fontSize: 11, color: "#888" }}>{g.targetDate || "No deadline"}</span>
+                <span style={{ fontSize: 11, color: "#7C8CAD" }}>{g.targetDate || "No deadline"}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#AAA", margin: "3px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9AABC7", margin: "3px 0" }}>
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
                 <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
@@ -1780,9 +1784,9 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             </tbody></table></div>
             {simId && (
               <div style={{ ...S.row, gap: 8, marginTop: 10, padding: "10px 14px", background: "#111", borderRadius: 3 }}>
-                <span style={{ fontSize: 12, color: "#AAA" }}>Extra payment/mo:</span>
+                <span style={{ fontSize: 12, color: "#9AABC7" }}>Extra payment/mo:</span>
                 <input type="number" style={{ ...S.inpSm, width: 90 }} placeholder="$ extra" value={simExtra} onChange={e => setSimExtra(e.target.value)} min="0" />
-                <span style={{ fontSize: 11, color: "#888" }}>See payoff time update above in the sim column row</span>
+                <span style={{ fontSize: 11, color: "#7C8CAD" }}>See payoff time update above in the sim column row</span>
               </div>
             )}
           </div>
@@ -1881,9 +1885,9 @@ function TrendsTab({ data, month }) {
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
-            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
                 const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
@@ -1900,9 +1904,9 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Total Spending — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="total" fill="#C9A227" radius={[2, 2, 0, 0]} name="Total Spent" />
           </BarChart>
         </ResponsiveContainer>
@@ -1915,29 +1919,29 @@ function TrendsTab({ data, month }) {
           <select style={S.sel} value={compareA} onChange={e => setCompareA(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
-          <span style={{ color: "#888", fontSize: 13, padding: "0 4px" }}>vs</span>
+          <span style={{ color: "#7C8CAD", fontSize: 13, padding: "0 4px" }}>vs</span>
           <select style={S.sel} value={compareB} onChange={e => setCompareB(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ ...S.statV, color: "#AAA", fontSize: 20 }}>{fmt(spendA.total)}</div>
-            <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareA)}</div>
+            <div style={{ ...S.statV, color: "#9AABC7", fontSize: 20 }}>{fmt(spendA.total)}</div>
+            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareA)}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ ...S.statV, color: spendB.total > spendA.total ? C.red : C.green, fontSize: 20 }}>{fmt(spendB.total)}</div>
-            <div style={{ fontSize: 11, color: "#888" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
+            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
           </div>
         </div>
         {compData.length > 0 && (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={compData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" width={75} tick={{ fill: "#AAA", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
-              <Legend wrapperStyle={{ fontSize: 10, color: "#888" }} />
-              <Bar dataKey={monthLabel(compareA)} fill="#555" radius={[0, 2, 2, 0]} barSize={8} />
+              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={75} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#7C8CAD" }} />
+              <Bar dataKey={monthLabel(compareA)} fill="#5A6A8C" radius={[0, 2, 2, 0]} barSize={8} />
               <Bar dataKey={monthLabel(compareB)} fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} />
             </BarChart>
           </ResponsiveContainer>
@@ -1950,9 +1954,9 @@ function TrendsTab({ data, month }) {
           <div style={S.cTitle}>Category Trends</div>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis dataKey="month" tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#888", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1A1A18", border: "1px solid #333", borderRadius: 3, color: "#CCC", fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               {catTrendData.map((c, i) => (
                 <Line key={c.name} type="monotone" dataKey={c.name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
