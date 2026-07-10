@@ -87,7 +87,7 @@ const shiftMonthStr = (m, d) => { const [y, mo] = m.split("-").map(Number); cons
 const last6Months = (m) => Array.from({ length: 6 }, (_, i) => shiftMonthStr(m, -(5 - i)));
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false };
 }
 
 function getMonthlyIncome(incomes) {
@@ -432,6 +432,10 @@ export default function BudgetManager() {
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
   const addTxBatch = (txs, isCSV = false) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}) });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
+  const updTxCat = (id, catId) => {
+    const cat = data.categories.find(c => c.id === catId);
+    save({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, categoryId: catId, categoryName: cat?.name || catId } : t) });
+  };
   const addInc = (i) => save({ ...data, incomes: [...data.incomes, { ...i, id: uid() }] });
   const delInc = (id) => save({ ...data, incomes: data.incomes.filter(i => i.id !== id) });
   const updCat = (id, u) => save({ ...data, categories: data.categories.map(c => c.id === id ? { ...c, ...u } : c) });
@@ -440,6 +444,9 @@ export default function BudgetManager() {
   const addSav = (g) => save({ ...data, savings: [...data.savings, { ...g, id: uid() }] });
   const updSav = (id, u) => save({ ...data, savings: data.savings.map(g => g.id === id ? { ...g, ...u } : g) });
   const delSav = (id) => save({ ...data, savings: data.savings.filter(g => g.id !== id) });
+  const addSavAcct = (a) => save({ ...data, savingsAccounts: [...(data.savingsAccounts || []), { ...a, id: uid(), updatedAt: todayStr() }] });
+  const updSavAcct = (id, u) => save({ ...data, savingsAccounts: (data.savingsAccounts || []).map(a => a.id === id ? { ...a, ...u, updatedAt: todayStr() } : a) });
+  const delSavAcct = (id) => save({ ...data, savingsAccounts: (data.savingsAccounts || []).filter(a => a.id !== id) });
   // Savings deposit also logs a transaction
   const depositSav = (goal, amount) => {
     const tx = { id: uid(), date: todayStr(), amount, categoryId: "savings_deposit", categoryName: "Savings Deposit", description: `Deposit: ${goal.name}`, isSavingsDeposit: true };
@@ -492,9 +499,9 @@ export default function BudgetManager() {
 
         <div style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
-          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} />}
+          {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} />}
           {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
-          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} />}
+          {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} addSavAcct={addSavAcct} updSavAcct={updSavAcct} delSavAcct={delSavAcct} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
         </div>
       </div>
@@ -905,12 +912,13 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 // ════════════════════════════════════════════════════════
 //  TRANSACTIONS + CSV + RECURRING
 // ════════════════════════════════════════════════════════
-function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, delRecurring, payDebt, applyDebtPayments }) {
+function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRecurring, delRecurring, payDebt, applyDebtPayments }) {
   const [date, setDate] = useState(todayStr());
   const [amount, setAmount] = useState("");
   const [catId, setCatId] = useState(data.categories[0]?.id || "");
   const [debtId, setDebtId] = useState("__none__");
   const [desc, setDesc] = useState("");
+  const [editCatId, setEditCatId] = useState(null);
   const [csvMode, setCsvMode] = useState(false);
   const [recurringMode, setRecurringMode] = useState(false);
   const [csvData, setCsvData] = useState(null);
@@ -1279,7 +1287,38 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
         </div>
         {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {filtered.map(t => <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}{t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}{t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt pmt</span>}{t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}{t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}</td><td style={{ ...S.td, color: t.type === "income" ? "#5B8A72" : "#888" }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td></tr>)}
+            {filtered.map(t => (
+              <tr key={t.id} style={t.type === "income" ? { background: "rgba(91,138,114,0.08)" } : {}}>
+                <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888", whiteSpace: "nowrap" }}>{t.date}</td>
+                <td style={S.td}>
+                  {t.description}
+                  {t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}
+                  {t.isSavingsDeposit && <span style={{ ...S.underB, marginLeft: 4 }}>savings</span>}
+                  {t.isDebtPayment && <span style={{ ...S.underB, marginLeft: 4, background: "#7F1D1D", color: "#FCA5A5" }}>debt pmt</span>}
+                  {t.type === "income" && t.incomeKind !== "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#5B8A72", color: "#fff" }}>income</span>}
+                  {t.type === "income" && t.incomeKind === "extra" && <span style={{ ...S.underB, marginLeft: 4, background: "#1E3A8A", color: "#93C5FD" }}>extra</span>}
+                </td>
+                <td style={S.td}>
+                  {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
+                    <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 6px" }}
+                      value={t.categoryId}
+                      onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
+                      onBlur={() => setEditCatId(null)}>
+                      {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  ) : (
+                    <span
+                      style={{ color: t.type === "income" ? "#5B8A72" : "#888", cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #444" : "none" }}
+                      title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "Tap to change category" : undefined}
+                      onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
+                      {t.categoryName}
+                    </span>
+                  )}
+                </td>
+                <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? "#5B8A72" : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td>
+                <td style={S.td}><button style={S.delBtn} onClick={() => delTx(t.id)}>x</button></td>
+              </tr>
+            ))}
           </tbody></table></div>
         )}
       </div>
@@ -1387,7 +1426,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
 // ════════════════════════════════════════════════════════
 //  GOALS TAB
 // ════════════════════════════════════════════════════════
-function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome, achievements }) {
+function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, delDbt, totalIncome, achievements, addSavAcct, updSavAcct, delSavAcct }) {
   const [gName, setGName] = useState("");
   const [gTarget, setGTarget] = useState("");
   const [gDate, setGDate] = useState("");
@@ -1399,16 +1438,60 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
   const [simId, setSimId] = useState(null);
   const [simExtra, setSimExtra] = useState("");
   const [depositAmounts, setDepositAmounts] = useState({});
+  const [saName, setSaName] = useState("");
+  const [saInst, setSaInst] = useState("");
+  const [saBal, setSaBal] = useState("");
+  const [updateBals, setUpdateBals] = useState({});
 
   const handleAddGoal = () => { const t = parseFloat(gTarget); if (!gName || !t) return; addSav({ name: gName, target: t, targetDate: gDate || null, saved: 0 }); setGName(""); setGTarget(""); setGDate(""); };
   const handleAddDebt = () => { const b = parseFloat(dBal); if (!dName || !b) return; addDbt({ name: dName, balance: b, rate: parseFloat(dRate) || 0, minPayment: parseFloat(dMin) || 0, extraPayment: parseFloat(dExtra) || 0 }); setDName(""); setDBal(""); setDRate(""); setDMin(""); setDExtra(""); };
+  const handleAddSavAcct = () => { const b = parseFloat(saBal); if (!saName || isNaN(b)) return; addSavAcct({ name: saName, institution: saInst, balance: b }); setSaName(""); setSaInst(""); setSaBal(""); };
 
   const totalDebt = data.debts.reduce((s, d) => s + d.balance, 0);
   const totalSaved = data.savings.reduce((s, g) => s + g.saved, 0);
+  const savingsAccounts = data.savingsAccounts || [];
+  const totalSavingsAccts = savingsAccounts.reduce((s, a) => s + a.balance, 0);
 
   return (
     <div>
-      {/* Savings */}
+      {/* Savings Accounts */}
+      <div style={S.card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div style={S.cTitle}>Savings Accounts</div>
+          <span style={{ fontSize: 12, color: C.green, fontFamily: "monospace" }}>Total: {fmt(totalSavingsAccts)}</span>
+        </div>
+        {savingsAccounts.length === 0 ? <div style={S.empty}>No savings accounts. Add your bank savings accounts to track their balances.</div> : (
+          <div style={{ marginBottom: 12 }}>
+            {savingsAccounts.map(a => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid " + C.border }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{a.name}</div>
+                  {a.institution && <div style={{ fontSize: 11, color: C.textDim }}>{a.institution}</div>}
+                  <div style={{ fontSize: 10, color: C.textDim, marginTop: 2 }}>Updated {a.updatedAt}</div>
+                </div>
+                <div style={{ fontFamily: "monospace", fontSize: 15, fontWeight: 700, color: C.green }}>{fmt(a.balance)}</div>
+                <input type="number" style={{ ...S.inpSm, width: 90, padding: "4px 8px", fontSize: 12 }}
+                  placeholder="New bal" value={updateBals[a.id] || ""}
+                  onChange={e => setUpdateBals(prev => ({ ...prev, [a.id]: e.target.value }))} />
+                <button style={{ ...S.btn, padding: "4px 10px", fontSize: 12 }} onClick={() => {
+                  const v = parseFloat(updateBals[a.id]);
+                  if (!isNaN(v)) { updSavAcct(a.id, { balance: v }); setUpdateBals(prev => ({ ...prev, [a.id]: "" })); }
+                }}>Update</button>
+                <button style={S.delBtn} onClick={() => delSavAcct(a.id)}>x</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ ...S.cTitle, marginTop: 6 }}>Add Account</div>
+        <div style={{ ...S.row, gap: 6 }}>
+          <input style={S.inp} placeholder="Account name (e.g. Emergency Fund)" value={saName} onChange={e => setSaName(e.target.value)} />
+          <input style={{ ...S.inpSm, width: 120 }} placeholder="Bank (optional)" value={saInst} onChange={e => setSaInst(e.target.value)} />
+          <input type="number" style={S.inpSm} placeholder="$ Balance" value={saBal} onChange={e => setSaBal(e.target.value)} min="0" />
+          <button style={S.btn} onClick={handleAddSavAcct}>Add</button>
+        </div>
+      </div>
+
+      {/* Savings Goals */}
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Savings Goals</div>
