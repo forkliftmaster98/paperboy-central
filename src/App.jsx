@@ -14,6 +14,7 @@ const CAT_COLORS = {
   personal: "#D879C9", auto: "#5FA8F5", medical: "#E85D75", pet: "#C4A35A",
   donations: "#F2C14E", transfers: "#8A9BB8", trading: "#63D4A0", cash: "#A0AEC4", misc: "#7A8AA8",
 };
+const sortCats = (cats) => [...cats].sort((a, b) => a.name.localeCompare(b.name));
 const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
 
 const DEFAULT_CATEGORIES = [
@@ -113,6 +114,23 @@ const ACHIEVEMENTS = [
   { id: "giving_back", tier: "bronze", title: "Giving Back", desc: "Made a donation" },
   { id: "trader", tier: "bronze", title: "In the Market", desc: "Made a trading or investing transaction" },
 ];
+
+const LEVELS = [
+  { name: "Paper Route", min: 0 },
+  { name: "Corner Stand", min: 4 },
+  { name: "Newsstand", min: 9 },
+  { name: "Press Room", min: 15 },
+  { name: "Print Empire", min: 22 },
+  { name: "Media Mogul", min: 29 },
+];
+function getLevel(count) {
+  let idx = 0;
+  LEVELS.forEach((l, i) => { if (count >= l.min) idx = i; });
+  const cur = LEVELS[idx];
+  const next = LEVELS[idx + 1] || null;
+  const progress = next ? (count - cur.min) / (next.min - cur.min) : 1;
+  return { idx, cur, next, progress };
+}
 
 // ── Helpers ───────────────────────────────────────────────
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -393,6 +411,10 @@ const GLOBAL_CSS = `
   from { opacity: 1; transform: translate(-50%, 0); }
   to   { opacity: 0; transform: translate(-50%, -12px); }
 }
+@keyframes confettiFall {
+  from { transform: translateY(-8px) rotate(0deg); opacity: 1; }
+  to   { transform: translateY(150px) rotate(660deg); opacity: 0; }
+}
 @keyframes barGrow {
   from { width: 0; }
 }
@@ -406,6 +428,12 @@ const GLOBAL_CSS = `
 .page-anim > div > *:nth-child(7) { animation-delay: 180ms; }
 .page-anim > div > *:nth-child(n+8) { animation-delay: 210ms; }
 .anim-bar { animation: barGrow 0.55s ease both; }
+* { scrollbar-width: thin; scrollbar-color: #33426B #121A2C; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: #121A2C; border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: #33426B; border-radius: 8px; border: 2px solid #121A2C; }
+*::-webkit-scrollbar-thumb:hover { background: #4A5C8C; }
+*::-webkit-scrollbar-corner { background: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .page-anim > div > *, .anim-bar { animation: none !important; }
 }
@@ -490,6 +518,13 @@ function AchievementToast({ achievement, onDone }) {
 
   const gold = achievement.tier === "gold";
   const accent = gold ? C.gold : C.green;
+  const confetti = useMemo(() => gold ? Array.from({ length: 22 }, (_, i) => ({
+    left: 8 + Math.random() * 84,
+    delay: Math.random() * 0.35,
+    dur: 0.9 + Math.random() * 0.7,
+    size: 4 + Math.random() * 4,
+    color: [C.gold, "#F2C14E", "#2ECC71", "#61AFEF", "#EDF2FA"][i % 5],
+  })) : [], [gold]);
   return (
     <div style={{
       position: "fixed", top: 16, left: "50%", zIndex: 999,
@@ -499,6 +534,9 @@ function AchievementToast({ achievement, onDone }) {
       boxShadow: gold ? `0 4px 28px ${C.gold}55` : "0 4px 28px rgba(34,197,94,0.35)", maxWidth: 320,
       animation: leaving ? "toastOut 0.45s ease forwards" : "toastIn 0.3s ease both",
     }}>
+      {gold && confetti.map((p, i) => (
+        <span key={i} style={{ position: "absolute", top: 0, left: `${p.left}%`, width: p.size, height: p.size, background: p.color, borderRadius: 1, animation: `confettiFall ${p.dur}s ease-in ${p.delay}s both`, pointerEvents: "none" }} />
+      ))}
       <span style={{ fontSize: 22 }}>{gold ? "🏆" : achievement.tier === "silver" ? "🥈" : "🥉"}</span>
       <div>
         <div style={{ fontWeight: 700, fontSize: 13, color: accent }}>Achievement Unlocked · {achievement.title}</div>
@@ -697,11 +735,24 @@ export default function BudgetManager() {
       {/* Achievement toast */}
       {toast && <AchievementToast achievement={toast} onDone={() => setToast(null)} />}
 
-      {/* PaperBoy */}
+      {/* PaperBoy — with level progress ring */}
       <div style={S.pbFloat}>
-        <div style={S.pbBtn} onClick={() => setPbOpen(!pbOpen)} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
-          <PaperBoySVG size={32} />
-        </div>
+        {(() => {
+          const lvl = getLevel((data.achievements || []).length);
+          const R = 29, CIRC = 2 * Math.PI * R;
+          return (
+            <div style={{ position: "relative", width: 64, height: 64 }} title={`${lvl.cur.name}${lvl.next ? ` — ${(data.achievements || []).length}/${lvl.next.min} to ${lvl.next.name}` : " — max level"}`}>
+              <svg width="64" height="64" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", pointerEvents: "none" }}>
+                <circle cx="32" cy="32" r={R} fill="none" stroke={C.surfaceHigh} strokeWidth="3" />
+                <circle cx="32" cy="32" r={R} fill="none" stroke={C.gold} strokeWidth="3" strokeLinecap="round"
+                  strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - lvl.progress)} style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+              </svg>
+              <div style={{ ...S.pbBtn, position: "absolute", top: 6, left: 6 }} onClick={() => setPbOpen(!pbOpen)} onMouseEnter={e => e.currentTarget.style.transform = "scale(1.08)"} onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}>
+                <PaperBoySVG size={32} />
+              </div>
+            </div>
+          );
+        })()}
       </div>
       {pbOpen && <PaperBoyPanel data={data} month={month} catSpend={catSpend} totalSpent={totalSpent} totalIncome={totalIncome} onClose={() => setPbOpen(false)} save={save} />}
     </div>
@@ -977,6 +1028,23 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   });
   const bestMonth = Object.entries(monthNets).sort((a, b) => b[1] - a[1])[0];
 
+  // Consecutive net-positive weeks (Mon-anchored), counted back from the latest active week
+  const weekNets = {};
+  allTx.forEach(t => {
+    const d = new Date(t.date + "T00:00:00");
+    if (isNaN(d.getTime())) return;
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const w = d.toISOString().slice(0, 10);
+    weekNets[w] = (weekNets[w] || 0) + (t.type === "income" ? t.amount : (t.isSavingsDeposit ? 0 : -t.amount));
+  });
+  const weekKeys = Object.keys(weekNets).sort();
+  let weekStreak = 0;
+  for (let i = weekKeys.length - 1; i >= 0; i--) {
+    if (weekNets[weekKeys[i]] > 0) weekStreak++;
+    else break;
+  }
+  const level = getLevel((data.achievements || []).length);
+
   const tips = analyzeFinances(data, month);
   const alertTips = tips.filter(t => t.type !== "good" && t.type !== "goal");
 
@@ -1028,6 +1096,13 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
           )}
         </div>
       )}
+      {weekStreak >= 2 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.goldDim + "66", border: "1px solid " + C.gold + "44", borderRadius: 10, padding: "8px 14px", marginBottom: 10 }}>
+          <span style={{ fontSize: 18 }}>🔥</span>
+          <span style={{ fontSize: 13, color: C.gold, fontWeight: 600 }}>{weekStreak}-week positive streak</span>
+          <span style={{ fontSize: 11, color: C.textDim }}>— every week you keep more than you spend, it grows</span>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 10 }}>
         <div style={S.card}><div style={{ ...S.statV, color: C.green, fontSize: 20 }}><CountUp value={totalIncome} /></div><div style={S.statL}>Income</div></div>
         <div style={S.card}><div style={{ ...S.statV, color: totalSpent > totalIncome ? C.red : C.text, fontSize: 20 }}><CountUp value={totalSpent} /></div><div style={S.statL}>Spent</div></div>
@@ -1048,7 +1123,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={S.card}>
           <div style={{ ...S.statV, color: C.gold, fontSize: 18 }}>{earnedCount}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 400 }}> / {ACHIEVEMENTS.length}</span></div>
           <div style={S.statL}>Achievements</div>
-          {earnedCount > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>See Goals tab</div>}
+          <div style={{ fontSize: 10, color: C.gold, marginTop: 4 }}>{level.cur.name}</div>
         </div>
       </div>
 
@@ -1397,7 +1472,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                 {(data.debts || []).map(d => <option key={d.id} value={d.id}>💳 Pay: {d.name}</option>)}
               </optgroup>}
               <optgroup label="Expense Category">
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </optgroup>
             </select>
             <button style={S.btn} onClick={handleAdd}>Add</button>
@@ -1412,7 +1487,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
               <input type="number" style={{ ...S.inpSm, width: 72 }} placeholder="Due day" value={recDueDay} onChange={e => setRecDueDay(e.target.value)} min="1" max="31" />
               <select style={S.sel} value={recCat} onChange={e => setRecCat(e.target.value)}>
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRecurring}>Add</button>
             </div>
@@ -1477,7 +1552,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                         ↩ Merchant refunds auto-marked as Skip — they cancel an existing expense, not real income. Tax refunds and financial transfers are imported as Extra Income. Change any row manually if needed.
                       </div>
                     )}
-                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto" }}>
+                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto", paddingRight: 10 }}>
                       <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
                         {csvDepositRows.map(row => {
                           const dtype = depositTypes[row._depositId] || "extra";
@@ -1506,7 +1581,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                   </div>
                 )}
                 <div style={{ fontSize: 12, fontWeight: 600, color: C.textMid, marginBottom: 4 }}>② Expenses ({csvRows.length}) — auto-categorized, adjust any that look wrong:</div>
-                <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto" }}>
+                <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto", paddingRight: 10 }}>
                   <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Amount</th><th style={S.th}>Description</th><th style={S.th}>Category</th></tr></thead><tbody>
                     {csvRows.slice(0, 20).map((row, i) => (
                       <tr key={i}>
@@ -1520,7 +1595,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                               {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
                             </optgroup>}
                             <optgroup label="Expense">
-                              {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </optgroup>
                           </select>
                         </td>
@@ -1545,7 +1620,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
         <input style={S.inp} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
         <select style={S.sel} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">All categories</option>
-          {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {search && (
           <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Search all months">
@@ -1578,7 +1653,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, addRe
                       value={t.categoryId}
                       onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
                       onBlur={() => setEditCatId(null)}>
-                      {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   ) : (
                     <span
@@ -1678,7 +1753,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
-                {data.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRule}>Add Rule</button>
             </div>
@@ -1901,7 +1976,7 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={S.cTitle}>Achievements</div>
-          <span style={{ fontSize: 12, color: C.gold, fontFamily: "monospace" }}>{achievements.length} / {ACHIEVEMENTS.length} unlocked</span>
+          <span style={{ fontSize: 12, color: C.gold, fontFamily: "monospace" }}>{getLevel(achievements.length).cur.name} · {achievements.length}/{ACHIEVEMENTS.length}</span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {ACHIEVEMENTS.map(a => {
@@ -1930,6 +2005,39 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
     </div>
   );
 }
+
+// Grade a completed month: savings rate, budget adherence, category discipline
+function gradeMonth(data, m) {
+  const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment && !t.isSavingsDeposit);
+  if (txs.length === 0) return null;
+  const spent = txs.reduce((s, t) => s + t.amount, 0);
+  const income = getMonthlyIncome(data.incomes) + data.transactions.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const totalBudget = data.categories.reduce((s, c) => s + c.budget, 0);
+  const cSpend = {};
+  txs.forEach(t => { cSpend[t.categoryId] = (cSpend[t.categoryId] || 0) + t.amount; });
+  const budgetedCats = data.categories.filter(c => c.budget > 0);
+  const overCount = budgetedCats.filter(c => (cSpend[c.id] || 0) > c.budget).length;
+
+  const grades = {};
+  if (income > 0) {
+    const rate = (income - spent) / income;
+    grades.savings = rate >= 0.3 ? "A" : rate >= 0.2 ? "B" : rate >= 0.1 ? "C" : rate >= 0 ? "D" : "F";
+  }
+  if (totalBudget > 0) {
+    const ratio = spent / totalBudget;
+    grades.budget = ratio <= 0.85 ? "A" : ratio <= 1 ? "B" : ratio <= 1.1 ? "C" : ratio <= 1.25 ? "D" : "F";
+  }
+  if (budgetedCats.length > 0) {
+    grades.discipline = overCount === 0 ? "A" : overCount === 1 ? "B" : overCount === 2 ? "C" : overCount === 3 ? "D" : "F";
+  }
+  const vals = Object.values(grades);
+  if (vals.length === 0) return null;
+  const gp = { A: 4, B: 3, C: 2, D: 1, F: 0 };
+  const avg = vals.reduce((s, g) => s + gp[g], 0) / vals.length;
+  grades.overall = avg >= 3.5 ? "A" : avg >= 2.5 ? "B" : avg >= 1.5 ? "C" : avg >= 0.75 ? "D" : "F";
+  return grades;
+}
+const GRADE_COLOR = { A: "#2ECC71", B: "#61AFEF", C: "#F59E0B", D: "#DF8E52", F: "#EF4444" };
 
 // ════════════════════════════════════════════════════════
 //  TRENDS TAB — month-over-month comparison
@@ -1978,8 +2086,28 @@ function TrendsTab({ data, month }) {
     .filter(c => (spendA.totals[c.id] || 0) > 0 || (spendB.totals[c.id] || 0) > 0)
     .map(c => ({ name: c.name.length > 10 ? c.name.slice(0, 9) + "." : c.name, [monthLabel(compareA)]: spendA.totals[c.id] || 0, [monthLabel(compareB)]: spendB.totals[c.id] || 0 }));
 
+  // Report card grades the viewed month if complete, otherwise the previous one
+  const gradeTarget = month < curMonth() ? month : shiftMonthStr(month, -1);
+  const grades = gradeMonth(data, gradeTarget);
+
   return (
     <div>
+      {grades && (
+        <div style={S.card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ ...S.cTitle, marginBottom: 0 }}>Report Card — {monthLabelLong(gradeTarget)}</div>
+            <span style={{ fontSize: 26, fontWeight: 800, color: GRADE_COLOR[grades.overall], fontFamily: "monospace" }}>{grades.overall}</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            {[["savings", "Savings Rate"], ["budget", "Budget Adherence"], ["discipline", "Category Discipline"]].map(([k, label]) => grades[k] && (
+              <div key={k} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "10px 12px", textAlign: "center", border: "1px solid " + C.border }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: GRADE_COLOR[grades[k]], fontFamily: "monospace" }}>{grades[k]}</div>
+                <div style={{ fontSize: 10, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: 3 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={S.card}>
         <div style={S.cTitle}>Savings Rate — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={160}>
