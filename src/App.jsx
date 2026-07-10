@@ -12,34 +12,46 @@ const DEFAULT_CATEGORIES = [
   { id: "insurance", name: "Insurance", type: "fixed", budget: 0 },
   { id: "phone", name: "Phone", type: "fixed", budget: 0 },
   { id: "subscriptions", name: "Subscriptions", type: "fixed", budget: 0 },
+  { id: "taxes", name: "Taxes & Fees", type: "fixed", budget: 0 },
   { id: "groceries", name: "Groceries", type: "variable", budget: 0 },
   { id: "dining", name: "Dining Out", type: "variable", budget: 0 },
   { id: "gas", name: "Gas", type: "variable", budget: 0 },
   { id: "shopping", name: "Shopping", type: "variable", budget: 0 },
+  { id: "video_games", name: "Video Games", type: "variable", budget: 0 },
   { id: "leisure", name: "Leisure", type: "variable", budget: 0 },
   { id: "personal", name: "Personal Care", type: "variable", budget: 0 },
+  { id: "auto", name: "Auto & Transport", type: "variable", budget: 0 },
+  { id: "medical", name: "Medical", type: "variable", budget: 0 },
+  { id: "pet", name: "Pet", type: "variable", budget: 0 },
   { id: "misc", name: "Misc", type: "variable", budget: 0 },
 ];
 
 const DEFAULT_RULES = [
   { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
-  { id: "r3", keywords: "netflix,spotify,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,steamgames,doordash,grubhub", categoryId: "subscriptions" },
-  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya", categoryId: "dining" },
-  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth", categoryId: "groceries" },
-  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station", categoryId: "gas" },
-  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe", categoryId: "shopping" },
-  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur", categoryId: "insurance" },
-  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness", categoryId: "leisure" },
+  // r3: subscriptions only — DashPass specifically, NOT generic doordash (those are dining)
+  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock", categoryId: "subscriptions" },
+  { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,scibellis,scibelli", categoryId: "dining" },
+  { id: "r5", keywords: "stop shop,shaws,market,whole foods,aldi,walmart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
+  { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pilot,global montell", categoryId: "gas" },
+  { id: "r7", keywords: "amazon,target,tj maxx,marshalls,kohls,home depot,lowes,bestbuy,bobs sports,rufe,temu,dicks sporting,dick's sporting,qomfort,comfrt,edjy,driftgoods,higround,flowers", categoryId: "shopping" },
+  { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur,allianz", categoryId: "insurance" },
+  { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness,stubhub,ticketmaster,tm *hey,wyckoff country", categoryId: "leisure" },
   { id: "r10", keywords: "capital one,venmo,ally,car payment,loan payment,mobile pmt", categoryId: "misc" },
-  { id: "r11", keywords: "grape ape,vape,smoke,tobacco,cigarette", categoryId: "personal" },
+  { id: "r11", keywords: "grape ape,vape,tobacco,cigarette,smoking ape,revitin", categoryId: "personal" },
   { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
-  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket", categoryId: "leisure" },
+  { id: "r13", keywords: "otis ridge,ski area,ski resort,mountain,lift ticket,bousquet", categoryId: "leisure" },
   { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "misc" },
-  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube", categoryId: "misc" },
-  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms", categoryId: "groceries" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline", categoryId: "auto" },
+  { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms,sunnys convenience", categoryId: "groceries" },
   { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
   { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
+  // New rules added based on real transaction history
+  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store", categoryId: "video_games" },
+  { id: "r20", keywords: "labcorp,urgent care,hospital,clinic,dentist,walgreens,cvs,rite aid,labcorp,excel tire", categoryId: "medical" },
+  { id: "r21", keywords: "vca animal,petco,petsmart,pet supplies,animal hospital", categoryId: "pet" },
+  { id: "r22", keywords: "kelley & ryan,excise tax,tax collector,tax payment,dmv", categoryId: "taxes" },
+  { id: "r23", keywords: "kalshi,robinhood", categoryId: "misc" },
 ];
 
 const ACHIEVEMENTS = [
@@ -369,6 +381,22 @@ export default function BudgetManager() {
         const r = await window.storage.get(STORAGE_KEY);
         if (r?.value) {
           const parsed = { ...getDefaultState(), ...JSON.parse(r.value) };
+
+          // Migrate: add missing default categories
+          const storedCatIds = new Set(parsed.categories.map(c => c.id));
+          const missingCats = DEFAULT_CATEGORIES.filter(c => !storedCatIds.has(c.id));
+          if (missingCats.length > 0) parsed.categories = [...parsed.categories, ...missingCats];
+
+          // Migrate: update existing default rule keywords + add missing rules
+          const storedRuleMap = new Map(parsed.rules.map(rule => [rule.id, rule]));
+          const updatedDefaultRules = DEFAULT_RULES.map(dr => {
+            const stored = storedRuleMap.get(dr.id);
+            return stored ? { ...stored, keywords: dr.keywords, categoryId: dr.categoryId } : dr;
+          });
+          const defaultRuleIds = new Set(DEFAULT_RULES.map(rule => rule.id));
+          const userRules = parsed.rules.filter(rule => !defaultRuleIds.has(rule.id));
+          parsed.rules = [...updatedDefaultRules, ...userRules];
+
           const withRecurring = generateRecurring(parsed);
           setData(withRecurring);
           if (withRecurring !== parsed) {
@@ -979,12 +1007,20 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
           .filter(row => parseFloat(String(row[amtCol] || "").replace(/[^0-9.-]/g, "")) > 0)
           .map((row, i) => ({ ...row, _depositId: i }));
 
-        // Auto-detect payroll rows
+        // Auto-detect payroll rows and flag bounced returns/refunds
         const initTypes = {};
         depositRows.forEach(row => {
           const desc = String(row[descCol] || "").toLowerCase();
-          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep/.test(desc);
-          initTypes[row._depositId] = isPayroll ? "income" : "extra";
+          const isPayroll = /payroll|direct dep|salary|wages|ddep|ach dep|ondrick natural/.test(desc);
+          const isBounce = /return of posted check|returned check|returned item/.test(desc);
+          const isRefund = /refund/.test(desc);
+          if (isBounce) {
+            initTypes[row._depositId] = "bounce";
+          } else if (isRefund) {
+            initTypes[row._depositId] = "refund";
+          } else {
+            initTypes[row._depositId] = isPayroll ? "income" : "extra";
+          }
         });
 
         if (expenseRows.length > 0 || depositRows.length > 0) {
@@ -1024,7 +1060,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
     });
     csvDepositRows.forEach(row => {
       const dtype = depositTypes[row._depositId];
-      if (!dtype || dtype === "skip") return;
+      if (!dtype || dtype === "skip" || dtype === "bounce" || dtype === "refund") return;
       const amt = Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, "")));
       if (!amt || amt <= 0) return;
       const isExtra = dtype === "extra";
@@ -1149,23 +1185,41 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 {csvDepositRows.length > 0 && (
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 6 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
-                    <div style={{ overflowX: "auto", maxHeight: 160, overflowY: "auto" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#5B8A72", marginBottom: 4 }}>Deposits / Credits ({csvDepositRows.length}) — mark which ones are income:</div>
+                    {csvDepositRows.some(r => depositTypes[r._depositId] === "bounce") && (
+                      <div style={{ fontSize: 11, color: C.amber, background: "#78350F33", borderRadius: 6, padding: "6px 10px", marginBottom: 6, border: "1px solid #78350F" }}>
+                        ⚠️ Bounced payment return detected — marked as Skip. Also check your expenses for duplicate original + retry charges and delete the original.
+                      </div>
+                    )}
+                    {csvDepositRows.some(r => depositTypes[r._depositId] === "refund") && (
+                      <div style={{ fontSize: 11, color: C.textMid, background: C.surfaceHigh, borderRadius: 6, padding: "6px 10px", marginBottom: 6 }}>
+                        ↩ Refunds auto-marked as Skip — they reduce an existing expense, not real income. Change to Extra Income if needed.
+                      </div>
+                    )}
+                    <div style={{ overflowX: "auto", maxHeight: 200, overflowY: "auto" }}>
                       <table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th><th style={S.th}>Type</th></tr></thead><tbody>
-                        {csvDepositRows.map(row => (
-                          <tr key={row._depositId}>
-                            <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
-                            <td style={S.td}>{row[csvMap.desc]}</td>
-                            <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
-                            <td style={S.td}>
-                              <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }} value={depositTypes[row._depositId] || "extra"} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
-                                <option value="income">Income</option>
-                                <option value="extra">Extra Income</option>
-                                <option value="skip">Skip</option>
-                              </select>
-                            </td>
-                          </tr>
-                        ))}
+                        {csvDepositRows.map(row => {
+                          const dtype = depositTypes[row._depositId] || "extra";
+                          const isBounce = dtype === "bounce";
+                          const isRefund = dtype === "refund";
+                          return (
+                            <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
+                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#888" }}>{row[csvMap.date]}</td>
+                              <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}</td>
+                              <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: "#5B8A72" }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
+                              <td style={S.td}>
+                                <select style={{ ...S.sel, fontSize: 11, padding: "2px 4px", borderColor: isBounce ? C.red : isRefund ? C.amber : C.border }}
+                                  value={dtype} onChange={e => setDepositTypes(prev => ({ ...prev, [row._depositId]: e.target.value }))}>
+                                  <option value="income">Income (Paycheck)</option>
+                                  <option value="extra">Extra Income</option>
+                                  <option value="refund">Refund / Return</option>
+                                  <option value="bounce">⚠️ Bounced Pmt Return</option>
+                                  <option value="skip">Skip</option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody></table>
                     </div>
                   </div>
@@ -1195,6 +1249,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, addRecurring, d
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
+                  <div style={{ fontSize: 11, color: C.textDim, alignSelf: "center" }}>{csvDepositRows.filter(r => ["bounce","refund","skip"].includes(depositTypes[r._depositId])).length} deposits skipped</div>
                   <button style={S.btnG} onClick={() => { setCsvData(null); setCsvRows([]); setCsvDepositRows([]); setDepositTypes({}); }}>Cancel</button>
                 </div>
               </div>
