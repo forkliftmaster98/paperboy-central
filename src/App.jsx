@@ -24,6 +24,34 @@ const isoFromRaw = (raw) => {
 };
 const txFingerprint = (dateIso, signedAmt, desc) => `${dateIso}|${signedAmt.toFixed(2)}|${String(desc).trim().toLowerCase().slice(0, 60)}`;
 
+// Category icons — shown everywhere a category appears (top-app pattern: icon + color = instant recognition)
+const CAT_ICONS = {
+  rent: "🏠", utilities: "💡", insurance: "🛡️", phone: "📱", subscriptions: "📺",
+  taxes: "🏛️", groceries: "🛒", dining: "🍔", gas: "⛽", shopping: "🛍️",
+  video_games: "🎮", leisure: "🎿", personal: "🧴", auto: "🚗", medical: "🩺",
+  pet: "🐾", donations: "💝", transfers: "🔄", trading: "📈", cash: "💵", misc: "📦",
+};
+const catIcon = (id) => CAT_ICONS[id] || "🏷️";
+
+// Clean raw bank descriptions into readable merchant names for display
+// ("CHIPOTLE 1580 05/21 PURCHASE CHICOPEE MA" -> "Chipotle 1580 Chicopee")
+function cleanMerchant(desc) {
+  if (!desc) return "";
+  let s = String(desc);
+  s = s.replace(/DES:\S+/gi, " ").replace(/ID:\S+/gi, " ").replace(/INDN:\S+( \S+)?/gi, " ").replace(/CO\s+ID:\S+/gi, " ");
+  s = s.replace(/PMT INFO:.*/gi, " ").replace(/CONF#\s*\S+/gi, " ");
+  s = s.replace(/\b(PPD|WEB|CKCD|ACH)\b/g, " ");
+  s = s.replace(/\b\d{1,2}\/\d{1,2}\b/g, " ");
+  s = s.replace(/\b(PURCHASE|MOBILE PURCHASE|CHECKCARD|POS DEB|POS|PMNT SENT|PMNT RCVD|WITHDRWL|DEPOSIT|ECOMM|RECURRING)\b/gi, " ");
+  s = s.replace(/\b\d{3}-?\d{3}-?\d{4}\b/g, " ").replace(/\b#\d+\b/g, " ");
+  s = s.replace(/\s+[A-Z]{2}\s*$/, " ");
+  s = s.replace(/\s{2,}/g, " ").trim();
+  if (!s) return desc;
+  return s.toLowerCase().split(" ").map(w => w.length > 2 ? w[0].toUpperCase() + w.slice(1) : w.toUpperCase()).join(" ");
+}
+
+const fmtDayHeader = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
 const sortCats = (cats) => [...cats].sort((a, b) => a.name.localeCompare(b.name));
 const catColor = (id) => CAT_COLORS[id] || COLORS[Math.abs([...String(id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 0)) % COLORS.length];
 
@@ -497,26 +525,26 @@ const S = {
   mBtn: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontSize: 14, fontFamily: "inherit" },
   mLbl: { fontSize: 13, color: C.textMid, minWidth: 110, textAlign: "center", fontFamily: "monospace" },
   bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, background: C.surface, borderTop: "1px solid " + C.border, display: "flex", zIndex: 100 },
-  navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 0 12px", cursor: "pointer", background: "none", border: "none", color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.15s" }),
+  navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "9px 0 10px", margin: "5px 4px", cursor: "pointer", background: a ? C.greenDim + "3A" : "none", border: "none", borderRadius: 12, color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.18s, background 0.18s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
-  cardFlush: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 12, overflow: "hidden", marginBottom: 10, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  card: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 16, padding: "16px 18px", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 16, overflow: "hidden", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
-  inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
-  inpSm: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 15, fontFamily: "inherit", width: 105 },
-  sel: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 110 },
-  btn: { background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
+  inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 10, padding: "11px 13px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
+  inpSm: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 10, padding: "11px 13px", color: C.text, fontSize: 15, fontFamily: "inherit", width: 105 },
+  sel: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 10, padding: "11px 13px", color: C.text, fontSize: 14, fontFamily: "inherit", minWidth: 110 },
+  btn: { background: C.green, color: "#04150B", border: "none", borderRadius: 10, padding: "11px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
   btnD: { background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit", transition: "opacity 0.15s, transform 0.12s" },
-  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s, color 0.15s" },
+  btnG: { background: C.surfaceHigh, border: "none", color: C.textMid, borderRadius: 10, padding: "9px 15px", fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "background 0.15s, color 0.15s" },
   btnTeal: { background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "opacity 0.15s, transform 0.12s" },
   tbl: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
   th: { textAlign: "left", padding: "8px 12px", borderBottom: "1px solid " + C.border, color: C.textDim, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" },
   td: { padding: "10px 12px", borderBottom: "1px solid " + C.border, color: C.textMid },
   statV: { fontSize: 28, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 },
   statL: { fontSize: 11, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: 4 },
-  bar: { height: 6, borderRadius: 99, background: C.surfaceHigh, overflow: "hidden", marginTop: 6 },
+  bar: { height: 8, borderRadius: 99, background: C.surfaceHigh, overflow: "hidden", marginTop: 6 },
   barF: (p, c) => ({ height: "100%", borderRadius: 99, background: c, width: String(Math.min(p, 100)) + "%", transition: "width 0.4s ease" }),
   overB: { display: "inline-block", background: C.redDim, color: C.red, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
   underB: { display: "inline-block", background: C.greenDim, color: C.green, fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4, marginLeft: 6 },
@@ -1268,14 +1296,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
   const savingsDeposits = monthTx.filter(t => t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
   const netCashFlow = totalIncome - totalSpent - savingsDeposits;
 
-  // Checking balance: last known balance from CSV + all transactions after that date
   const cb = data.checkingBalance;
-  const estimatedBalance = cb ? (() => {
-    const afterTxs = data.transactions.filter(t => t.date > cb.asOf);
-    const incomeAfter = afterTxs.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    const expenseAfter = afterTxs.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
-    return cb.amount + incomeAfter - expenseAfter;
-  })() : null;
 
   // Spending forecast — only meaningful for the current month
   const isCurrentMonth = month === curMonth();
@@ -1307,7 +1328,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={{ textAlign: "right", fontSize: 10, color: C.textDim }}>until {fmtDay(sts.period.nextPayday)}<br/>(next payday)</div>
           </div>
           <div style={{ fontSize: 11, color: C.textMid, marginTop: 8, lineHeight: 1.6 }}>
-            {fmt(sts.bal)} balance
+            {fmt(sts.bal)} balance <span style={{ color: C.textDim }}>(bank snapshot {fmt(cb?.amount || 0)} · {cb?.asOf})</span>
             {sts.billsTotal > 0 && <> − {fmt(sts.billsTotal)} bills due ({sts.bills.map(b => b.name).join(", ")})</>}
             {sts.goalCut > 0 && <> − {fmt(sts.goalCut)} to goals</>}
             {sts.buffer > 0 && <> − {fmt(sts.buffer)} buffer</>}
@@ -1367,25 +1388,6 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         </div>
       )}
 
-      {estimatedBalance !== null && (
-        <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <div>
-              <div style={{ ...S.statV, color: estimatedBalance < 200 ? C.red : estimatedBalance < 500 ? C.amber : C.green }}><CountUp value={estimatedBalance} /></div>
-              <div style={S.statL}>Checking Balance (Est.)</div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: C.textDim }}>Snapshot: {fmt(cb.amount)}</div>
-              <div style={{ fontSize: 10, color: C.textDim }}>as of {cb.asOf}</div>
-            </div>
-          </div>
-          {data.transactions.some(t => t.date > cb.asOf) && (
-            <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>
-              Adjusted for {data.transactions.filter(t => t.date > cb.asOf).length} transaction{data.transactions.filter(t => t.date > cb.asOf).length !== 1 ? "s" : ""} logged after snapshot date
-            </div>
-          )}
-        </div>
-      )}
       {weekStreak >= 2 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: C.goldDim + "66", border: "1px solid " + C.gold + "44", borderRadius: 10, padding: "8px 14px", marginBottom: 10 }}>
           <span style={{ fontSize: 18 }}>🔥</span>
@@ -1462,7 +1464,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
               </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 10 }}>
-              {pieData.map((d) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 3 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(d.id), flexShrink: 0 }} />{d.name}: {fmt(d.value)}</span>)}
+              {pieData.map((d) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(d.id), flexShrink: 0 }} />{catIcon(d.id)} {d.name}: {fmt(d.value)}</span>)}
             </div>
           </div>
         )}
@@ -1508,9 +1510,9 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
       <div style={S.card}>
         <div style={S.cTitle}>Recent Transactions</div>
-        {monthTx.length === 0 ? <div style={S.empty}>No transactions this month.</div> : (
+        {monthTx.length === 0 ? <div style={S.empty}>🗞 A quiet month so far. Transactions land here as you log or import them.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th></tr></thead><tbody>
-            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{t.date}</td><td style={S.td}>{t.description}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId) }}>{t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace" }}>{fmt(t.amount)}</td></tr>)}
+            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD", whiteSpace: "nowrap" }}>{t.date.slice(5)}</td><td style={S.td} title={t.description}>{cleanMerchant(t.description)}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId), whiteSpace: "nowrap" }}>{t.type === "income" ? "💰" : catIcon(t.categoryId)} {t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1812,7 +1814,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                 {(data.debts || []).map(d => <option key={d.id} value={d.id}>💳 Pay: {d.name}</option>)}
               </optgroup>}
               <optgroup label="Expense Category">
-                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
               </optgroup>
             </select>
             <button style={S.btn} onClick={handleAdd}>Add</button>
@@ -1827,11 +1829,11 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
               <input type="number" style={{ ...S.inpSm, width: 72 }} placeholder="Due day" value={recDueDay} onChange={e => setRecDueDay(e.target.value)} min="1" max="31" />
               <select style={S.sel} value={recCat} onChange={e => setRecCat(e.target.value)}>
-                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRecurring}>Add</button>
             </div>
-            {(data.recurring || []).length === 0 ? <div style={S.empty}>No recurring transactions set.</div> : (
+            {(data.recurring || []).length === 0 ? <div style={S.empty}>📅 Add your bills here (rent, insurance, subscriptions) and PaperBoy tracks due dates for you.</div> : (
               <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
                 {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
@@ -1972,7 +1974,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                               {(data.debts||[]).map(d => <option key={d.id} value={d.id}>💳 {d.name}</option>)}
                             </optgroup>}
                             <optgroup label="Expense">
-                              {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
                             </optgroup>
                           </select>
                         </td>
@@ -1997,7 +1999,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
         <input style={S.inp} placeholder="Search transactions..." value={search} onChange={e => setSearch(e.target.value)} />
         <select style={S.sel} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value="all">All categories</option>
-          {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
         </select>
         <button style={searchAll ? S.btn : S.btnG} onClick={() => setSearchAll(v => !v)} title="Toggle whether the list below shows this month only or every month">
           {searchAll ? "All months" : "This month"}
@@ -2009,27 +2011,35 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
           <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
-        {filtered.length === 0 ? <div style={S.empty}>No transactions match.</div> : (
+        {filtered.length === 0 ? <div style={S.empty}>🗞 Nothing here yet. Import your bank CSV above, or log a purchase — it takes five seconds.</div> : (
           <div>
-            {filtered.map(t => (
+            {(() => {
+              const groups = [];
+              filtered.forEach(t => {
+                const g = groups[groups.length - 1];
+                if (g && g.date === t.date) g.txs.push(t); else groups.push({ date: t.date, txs: [t] });
+              });
+              return groups.map(g => (
+                <div key={g.date}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.08em", padding: "12px 0 4px", borderBottom: "1px solid " + C.border }}>{fmtDayHeader(g.date)}</div>
+                  {g.txs.map(t => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 0", borderBottom: "1px solid " + C.border, background: t.type === "income" ? "rgba(46,204,113,0.06)" : "transparent" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: "monospace", fontSize: 10, color: "#7C8CAD" }}>{t.date}</div>
-                  <div style={{ fontSize: 13, color: C.text, wordBreak: "break-word" }}>{t.description}</div>
+                  <div style={{ fontSize: 13, color: C.text, wordBreak: "break-word" }} title={t.description}>{cleanMerchant(t.description)}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
                     {editCatId === t.id && !t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income" ? (
                       <select autoFocus style={{ ...S.sel, fontSize: 11, padding: "2px 4px" }}
                         value={t.categoryId}
                         onChange={e => { updTxCat(t.id, e.target.value); setEditCatId(null); }}
                         onBlur={() => setEditCatId(null)}>
-                        {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
                       </select>
                     ) : (
                       <span
                         style={{ fontSize: 11, color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
                         title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                         onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
-                        {t.categoryName}
+                        {t.type === "income" ? "💰" : catIcon(t.categoryId)} {t.categoryName}
                       </span>
                     )}
                     {t.fromRecurring && <span style={S.underB}>auto</span>}
@@ -2056,7 +2066,10 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                 )}
                 <button className="del-btn" style={{ ...S.delBtn, flexShrink: 0, fontSize: 16 }} onClick={() => delTx(t.id)}>✕</button>
               </div>
-            ))}
+                  ))}
+                </div>
+              ));
+            })()}
           </div>
         )}
       </div>
@@ -2085,7 +2098,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
     const sp = catSpend[c.id] || 0; const over = c.budget > 0 && sp > c.budget;
     return (
       <tr>
-        <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
+        <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 14 }}>{catIcon(c.id)}</span><span style={{ width: 6, height: 6, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
         <td style={S.td}>{c.budget > 0 && <div style={S.bar}><div className="anim-bar" style={S.barF(pct(sp, c.budget), over ? C.red : catColor(c.id))} /></div>}</td>
@@ -2104,7 +2117,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
           <select style={S.sel} value={incFreq} onChange={e => setIncFreq(e.target.value)}><option value="weekly">Weekly</option><option value="biweekly">Biweekly</option><option value="monthly">Monthly</option></select>
           <button style={S.btn} onClick={handleAddInc}>Add</button>
         </div>
-        {data.incomes.length === 0 ? <div style={S.empty}>No income sources.</div> : (
+        {data.incomes.length === 0 ? <div style={S.empty}>💵 Start here: add your paycheck so every other number has something to measure against.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Source</th><th style={S.th}>Amount</th><th style={S.th}>Freq</th><th style={S.th}>Monthly Est.</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
             {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
             <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #243050" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #243050" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
@@ -2196,7 +2209,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
-                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {sortCats(data.categories).map(c => <option key={c.id} value={c.id}>{catIcon(c.id)} {c.name}</option>)}
               </select>
               <button style={S.btn} onClick={handleAddRule}>Add Rule</button>
             </div>
@@ -2208,7 +2221,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
                   return (
                     <div key={r.id} style={{ background: C.surfaceHigh, borderRadius: 8, padding: "8px 10px", border: "1px solid " + C.border, borderLeft: "3px solid " + catColor(r.categoryId) }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: catColor(r.categoryId) }}>{cat?.name || r.categoryId}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: catColor(r.categoryId) }}>{catIcon(r.categoryId)} {cat?.name || r.categoryId}</span>
                         <button style={S.delBtn} onClick={() => delRule(r.id)}>✕</button>
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
