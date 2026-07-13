@@ -173,7 +173,7 @@ const storageBackend = {
 };
 
 function getDefaultState() {
-  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null, importExclusions: [] };
+  return { incomes: [], categories: DEFAULT_CATEGORIES, transactions: [], savings: [], savingsAccounts: [], debts: [], rules: DEFAULT_RULES, recurring: [], achievements: [], csvImported: false, checkingBalance: null, importExclusions: [], paycheckPlan: { buffer: 50 } };
 }
 
 function getMonthlyIncome(incomes) {
@@ -354,6 +354,115 @@ function checkAchievements(data) {
   });
 
   return newIds;
+}
+
+// ── Paycheck-native money math ────────────────────────────
+// Everything below powers Safe-to-Spend, the forecast, envelopes, and the briefing.
+function lastPayrollDate(transactions) {
+  let last = null;
+  (transactions || []).forEach(t => { if (t.type === "income" && t.incomeKind !== "extra" && (!last || t.date > last)) last = t.date; });
+  return last;
+}
+function payFrequencyDays(incomes) {
+  if ((incomes || []).some(i => i.frequency === "weekly")) return 7;
+  if ((incomes || []).some(i => i.frequency === "biweekly")) return 14;
+  if ((incomes || []).length > 0) return 30;
+  return 7;
+}
+// Current pay period: anchored to the latest real paycheck, rolls forward by frequency
+function currentPayPeriod(data) {
+  const freq = payFrequencyDays(data.incomes);
+  const today = todayStr();
+  let anchor = lastPayrollDate(data.transactions);
+  if (!anchor) {
+    const d = new Date(today + "T00:00:00");
+    d.setDate(d.getDate() - ((d.getDay() + 2) % 7)); // most recent Friday
+    anchor = d.toISOString().slice(0, 10);
+  }
+  const start = new Date(anchor + "T00:00:00");
+  const t = new Date(today + "T00:00:00");
+  for (;;) {
+    const n = new Date(start); n.setDate(n.getDate() + freq);
+    if (n <= t) start.setTime(n.getTime()); else break;
+  }
+  const end = new Date(start); end.setDate(end.getDate() + freq);
+  return { start: start.toISOString().slice(0, 10), nextPayday: end.toISOString().slice(0, 10), freq };
+}
+function avgPaycheck(data) {
+  const pays = (data.transactions || []).filter(t => t.type === "income" && t.incomeKind !== "extra").sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
+  if (pays.length) return pays.reduce((s, t) => s + t.amount, 0) / pays.length;
+  return getMonthlyIncome(data.incomes) * payFrequencyDays(data.incomes) / 30.4;
+}
+function computeEstimatedBalance(data) {
+  const cb = data.checkingBalance;
+  if (!cb) return null;
+  const after = data.transactions.filter(t => t.date > cb.asOf);
+  const inc = after.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const exp = after.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  return cb.amount + inc - exp;
+}
+// Recurring bills falling strictly after fromIso through toIso (dueDay clamped to short months)
+function billsDueBetween(recurring, fromIso, toIso) {
+  const out = [];
+  const d = new Date(fromIso + "T00:00:00"); d.setDate(d.getDate() + 1);
+  const end = new Date(toIso + "T00:00:00");
+  while (d <= end) {
+    const dom = d.getDate();
+    const daysInMo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    (recurring || []).forEach(r => {
+      if (r.dueDay && (r.dueDay === dom || (r.dueDay > daysInMo && dom === daysInMo))) out.push({ ...r, dueDate: d.toISOString().slice(0, 10) });
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+function computeSafeToSpend(data) {
+  const bal = computeEstimatedBalance(data);
+  if (bal === null) return null;
+  const period = currentPayPeriod(data);
+  const bills = billsDueBetween(data.recurring, todayStr(), period.nextPayday);
+  const billsTotal = bills.reduce((s, b) => s + b.amount, 0);
+  const goalCut = (data.savings || []).reduce((s, g) => s + (g.perPaycheck || 0), 0);
+  const buffer = data.paycheckPlan?.buffer ?? 50;
+  return { bal, period, bills, billsTotal, goalCut, buffer, safe: bal - billsTotal - goalCut - buffer };
+}
+// 30-day projection: paychecks in, recurring bills out, plus the recent daily spend pace.
+// If recurring bills are configured, pace uses variable categories only (bills counted separately);
+// otherwise pace uses all spending so bills aren't missed entirely.
+function buildForecast(data, days = 30) {
+  const start = computeEstimatedBalance(data);
+  if (start === null) return null;
+  const period = currentPayPeriod(data);
+  const pay = avgPaycheck(data);
+  const cutoff = new Date(todayStr() + "T00:00:00"); cutoff.setDate(cutoff.getDate() - 28);
+  const cutoffIso = cutoff.toISOString().slice(0, 10);
+  const hasBills = (data.recurring || []).some(r => r.dueDay);
+  const varCats = new Set((data.categories || []).filter(c => c.type === "variable").map(c => c.id));
+  const spend28 = data.transactions
+    .filter(t => t.type !== "income" && !t.isSavingsDeposit && t.date > cutoffIso && (hasBills ? varCats.has(t.categoryId) : true))
+    .reduce((s, t) => s + t.amount, 0);
+  const dailyRate = spend28 / 28;
+  const horizonEnd = new Date(todayStr() + "T00:00:00"); horizonEnd.setDate(horizonEnd.getDate() + days);
+  const paydays = new Set();
+  { const d = new Date(period.nextPayday + "T00:00:00");
+    while (d <= horizonEnd) { paydays.add(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + period.freq); } }
+  const billByDate = {};
+  billsDueBetween(data.recurring, todayStr(), horizonEnd.toISOString().slice(0, 10)).forEach(b => { billByDate[b.dueDate] = (billByDate[b.dueDate] || 0) + b.amount; });
+  const points = [];
+  let bal = start, firstNegative = null, lowest = { balance: start, date: todayStr() };
+  const d = new Date(todayStr() + "T00:00:00");
+  for (let i = 0; i <= days; i++) {
+    const iso = d.toISOString().slice(0, 10);
+    if (i > 0) {
+      bal -= dailyRate + (billByDate[iso] || 0);
+      if (paydays.has(iso)) bal += pay;
+    }
+    points.push({ date: iso.slice(5), balance: Math.round(bal * 100) / 100 });
+    if (bal < lowest.balance) lowest = { balance: bal, date: iso };
+    if (bal < 0 && !firstNegative) firstNegative = { date: iso, balance: bal };
+    d.setDate(d.getDate() + 1);
+  }
+  return { points, firstNegative, lowest, dailyRate, pay };
 }
 
 // ── Design tokens ─────────────────────────────────────────
@@ -676,6 +785,7 @@ export default function BudgetManager() {
   const addTxBatch = (txs, isCSV = false, extra = {}) => save({ ...data, transactions: [...data.transactions, ...txs.map(t => ({ ...t, id: uid() }))], ...(isCSV ? { csvImported: true } : {}), ...extra });
   const saveCheckingBalance = (cb) => save({ ...data, checkingBalance: cb });
   const delTx = (id) => save({ ...data, transactions: data.transactions.filter(t => t.id !== id) });
+  const updPlan = (u) => save({ ...data, paycheckPlan: { ...(data.paycheckPlan || { buffer: 50 }), ...u } });
   const updTxAmt = (id, amount) => save({ ...data, transactions: data.transactions.map(t => t.id === id ? { ...t, amount } : t) });
   const updTxCat = (id, catId) => {
     const cat = data.categories.find(c => c.id === catId);
@@ -749,7 +859,7 @@ export default function BudgetManager() {
         <div key={tab} className="page-anim" style={S.page}>
           {tab === 0 && <Dashboard data={data} monthTx={monthTx} catSpend={catSpend} totalSpent={totalSpent} totalBudgeted={totalBudgeted} totalIncome={totalIncome} month={month} />}
           {tab === 1 && <Transactions data={data} monthTx={monthTx} addTx={addTx} addTxBatch={addTxBatch} delTx={delTx} updTxCat={updTxCat} updTxAmt={updTxAmt} addRecurring={addRecurring} delRecurring={delRecurring} payDebt={payDebt} applyDebtPayments={applyDebtPayments} saveCheckingBalance={saveCheckingBalance} />}
-          {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} />}
+          {tab === 2 && <BudgetTab data={data} catSpend={catSpend} totalIncome={totalIncome} addInc={addInc} delInc={delInc} updCat={updCat} addCat={addCat} delCat={delCat} addRule={addRule} delRule={delRule} updSav={updSav} updPlan={updPlan} />}
           {tab === 3 && <GoalsTab data={data} addSav={addSav} updSav={updSav} delSav={delSav} depositSav={depositSav} addDbt={addDbt} updDbt={updDbt} delDbt={delDbt} totalIncome={totalIncome} achievements={data.achievements || []} addSavAcct={addSavAcct} updSavAcct={updSavAcct} delSavAcct={delSavAcct} />}
           {tab === 4 && <TrendsTab data={data} month={month} />}
         </div>
@@ -1176,8 +1286,87 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
   const hasBillDates = (data.recurring || []).some(r => r.dueDay);
 
+  // Paycheck-native views
+  const sts = computeSafeToSpend(data);
+  const forecast = buildForecast(data);
+  const isPayday = sts && todayStr() === sts.period.start;
+  const periodTx = sts ? data.transactions.filter(t => t.date >= sts.period.start && t.date <= todayStr()) : [];
+  const periodIn = periodTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const periodSpent = periodTx.filter(t => t.type !== "income" && !t.isSavingsDeposit).reduce((s, t) => s + t.amount, 0);
+  const fmtDay = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+
   return (
     <div>
+      {sts && (
+        <div style={{ ...S.card, background: `linear-gradient(180deg, ${sts.safe < 0 ? "#2E1418" : sts.safe < 100 ? "#2E2410" : "#122E1E"} 0%, ${C.surface} 100%)`, borderColor: sts.safe < 0 ? C.red : sts.safe < 100 ? C.amber : C.green + "66" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ ...S.statV, fontSize: 34, color: sts.safe < 0 ? C.red : sts.safe < 100 ? C.amber : C.green }}><CountUp value={sts.safe} /></div>
+              <div style={S.statL}>Safe to Spend</div>
+            </div>
+            <div style={{ textAlign: "right", fontSize: 10, color: C.textDim }}>until {fmtDay(sts.period.nextPayday)}<br/>(next payday)</div>
+          </div>
+          <div style={{ fontSize: 11, color: C.textMid, marginTop: 8, lineHeight: 1.6 }}>
+            {fmt(sts.bal)} balance
+            {sts.billsTotal > 0 && <> − {fmt(sts.billsTotal)} bills due ({sts.bills.map(b => b.name).join(", ")})</>}
+            {sts.goalCut > 0 && <> − {fmt(sts.goalCut)} to goals</>}
+            {sts.buffer > 0 && <> − {fmt(sts.buffer)} buffer</>}
+          </div>
+          {!hasBillDates && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6 }}>Tip: add your recurring bills (Txns → Recurring, with due days) to make this number airtight.</div>}
+        </div>
+      )}
+
+      {sts && (
+        <div style={{ ...S.card, borderColor: isPayday ? C.gold + "66" : C.border }}>
+          <div style={{ ...S.cTitle, color: isPayday ? C.gold : C.textDim }}>{isPayday ? "🗞 Friday Briefing — Payday" : "Week at a Glance"}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.green, fontFamily: "monospace" }}>+{fmt(periodIn)}</div>
+              <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>In this period</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: "monospace" }}>−{fmt(periodSpent)}</div>
+              <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>Spent since {fmtDay(sts.period.start)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: sts.billsTotal > 0 ? C.amber : C.textMid, fontFamily: "monospace" }}>{fmt(sts.billsTotal)}</div>
+              <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bills before payday</div>
+            </div>
+          </div>
+          {(() => {
+            if (forecast?.firstNegative) return <div style={{ fontSize: 11, color: C.red }}>⚠ On pace to go negative {fmtDay(forecast.firstNegative.date)} — see forecast below.</div>;
+            if (periodIn > 0 && periodSpent > periodIn) return <div style={{ fontSize: 11, color: C.amber }}>You've spent more than came in this period. Ease off where you can.</div>;
+            return <div style={{ fontSize: 11, color: C.green }}>✓ Holding steady — spend stays under what came in.</div>;
+          })()}
+        </div>
+      )}
+
+      {forecast && forecast.points.length > 1 && (
+        <div style={S.card}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div style={S.cTitle}>30-Day Forecast</div>
+            <span style={{ fontSize: 10, color: C.textDim }}>~{fmt(forecast.dailyRate)}/day pace · {fmt(forecast.pay)}/paycheck</span>
+          </div>
+          <ResponsiveContainer width="100%" height={140}>
+            <LineChart data={forecast.points} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+              <XAxis dataKey="date" tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} interval={6} />
+              <YAxis tickFormatter={v => `$${Math.round(v)}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} width={48} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <Line type="monotone" dataKey="balance" stroke={forecast.firstNegative ? C.red : C.green} strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+          {forecast.firstNegative ? (
+            <div style={{ fontSize: 12, color: C.red, marginTop: 4 }}>
+              ⚠ Projected to go negative on <b>{fmtDay(forecast.firstNegative.date)}</b>. Cutting ~{fmt(Math.ceil(Math.abs(forecast.lowest.balance) / Math.max(1, Math.round((new Date(forecast.lowest.date) - new Date(todayStr())) / 604800000) || 1)))} per week keeps you positive.
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: C.green, marginTop: 4 }}>
+              ✓ You stay positive — lowest point {fmt(forecast.lowest.balance)} on {fmtDay(forecast.lowest.date)}.
+            </div>
+          )}
+        </div>
+      )}
+
       {estimatedBalance !== null && (
         <div style={{ ...S.card, marginBottom: 10, background: C.surfaceHigh, borderColor: estimatedBalance < 0 ? C.red : C.border }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -1878,7 +2067,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
 // ════════════════════════════════════════════════════════
 //  BUDGET TAB + AUTO-CATEGORIZATION RULES
 // ════════════════════════════════════════════════════════
-function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat, delCat, addRule, delRule }) {
+function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat, delCat, addRule, delRule, updSav, updPlan }) {
   const [incName, setIncName] = useState("");
   const [incAmt, setIncAmt] = useState("");
   const [incFreq, setIncFreq] = useState("monthly");
@@ -1922,6 +2111,60 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
           </tbody></table>
         )}
       </div>
+
+      {(() => {
+        const pay = avgPaycheck(data);
+        const period = currentPayPeriod(data);
+        const goalCut = (data.savings || []).reduce((s, g) => s + (g.perPaycheck || 0), 0);
+        const buffer = data.paycheckPlan?.buffer ?? 50;
+        const freqLabel = period.freq === 7 ? "weekly" : period.freq === 14 ? "biweekly" : "monthly";
+        const spendEnv = pay - goalCut - buffer;
+        return (
+          <div style={{ ...S.card, borderColor: C.gold + "44" }}>
+            <div style={{ ...S.cTitle, color: C.gold }}>Paycheck Plan — pay yourself first</div>
+            <div style={{ fontSize: 11, color: C.textMid, marginBottom: 10, lineHeight: 1.5 }}>
+              Every payday ({freqLabel}), your paycheck splits automatically: goals get funded first, a buffer stays untouched, and what's left is yours to spend. Safe-to-Spend on the dashboard enforces this.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.green, fontFamily: "monospace" }}>{fmt(pay)}</div>
+                <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>Avg paycheck</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: C.gold, fontFamily: "monospace" }}>{fmt(goalCut)}</div>
+                <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>To goals first</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: spendEnv < 0 ? C.red : C.text, fontFamily: "monospace" }}>{fmt(spendEnv)}</div>
+                <div style={{ fontSize: 9, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em" }}>Spend envelope</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: (data.savings || []).length ? 12 : 0 }}>
+              <span style={{ fontSize: 12, color: C.textMid }}>Buffer kept aside each period:</span>
+              <input type="number" min="0" style={{ ...S.inpSm, width: 80, padding: "4px 8px", fontSize: 13 }} value={buffer || ""} placeholder="0"
+                onChange={e => updPlan({ buffer: parseFloat(e.target.value) || 0 })} />
+            </div>
+            {(data.savings || []).length > 0 ? (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Auto set-aside per paycheck</div>
+                {(data.savings || []).map(g => (
+                  <div key={g.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "5px 0" }}>
+                    <span style={{ fontSize: 13, color: C.text }}>{g.name}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 10, color: C.textDim }}>{fmt(g.saved)} / {fmt(g.target)}</span>
+                      <input type="number" min="0" style={{ ...S.inpSm, width: 80, padding: "4px 8px", fontSize: 13 }} value={g.perPaycheck || ""} placeholder="$0"
+                        onChange={e => updSav(g.id, { perPaycheck: parseFloat(e.target.value) || 0 })} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: C.textDim }}>Create a savings goal on the Goals tab, then set how much each paycheck feeds it here.</div>
+            )}
+            {spendEnv < 0 && <div style={{ fontSize: 11, color: C.red, marginTop: 8 }}>Your goal set-asides + buffer exceed a paycheck — dial one back or this plan can't hold.</div>}
+          </div>
+        );
+      })()}
 
       {["fixed", "variable"].map(type => (
         <div key={type} style={S.card}>
