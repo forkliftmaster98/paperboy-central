@@ -240,7 +240,8 @@ function autoCategory(desc, rules, categories) {
 
 function analyzeFinances(data, month) {
   const tips = [];
-  const income = getMonthlyIncome(data.incomes);
+  const monthDeposits = data.transactions.filter(t => monthKey(t.date) === month && t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const income = monthDeposits > 0 ? monthDeposits : getMonthlyIncome(data.incomes);
   const txs = data.transactions.filter(t => monthKey(t.date) === month && t.type !== "income" && !t.isDebtPayment);
   const spent = txs.reduce((s, t) => s + t.amount, 0);
   const cSpend = {};
@@ -336,6 +337,8 @@ function checkAchievements(data) {
   months.forEach(m => {
     const txs = allTxs.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment);
     const spent = txs.reduce((s, t) => s + t.amount, 0);
+    const monthDeposits = allTxs.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+    const income = monthDeposits > 0 ? monthDeposits : getMonthlyIncome(data.incomes);
 
     // Per-category spend this month
     const cSpend = {};
@@ -801,9 +804,10 @@ export default function BudgetManager() {
   const totalBudgeted = useMemo(() => data ? data.categories.reduce((s, c) => s + c.budget, 0) : 0, [data]);
   const totalIncome = useMemo(() => {
     if (!data) return 0;
-    const manual = getMonthlyIncome(data.incomes);
+    // Imported paycheck deposits are the source of truth; the manual income
+    // source only fills in for months with no imported income (else it double-counts)
     const deposits = monthTx.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    return manual + deposits;
+    return deposits > 0 ? deposits : getMonthlyIncome(data.incomes);
   }, [data, monthTx]);
 
   if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#8CA0C0" }}>Loading...</p></div>;
@@ -2467,7 +2471,8 @@ function gradeMonth(data, m) {
   const txs = data.transactions.filter(t => monthKey(t.date) === m && t.type !== "income" && !t.isDebtPayment && !t.isSavingsDeposit);
   if (txs.length === 0) return null;
   const spent = txs.reduce((s, t) => s + t.amount, 0);
-  const income = getMonthlyIncome(data.incomes) + data.transactions.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const monthDeposits = data.transactions.filter(t => monthKey(t.date) === m && t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const income = monthDeposits > 0 ? monthDeposits : getMonthlyIncome(data.incomes);
   const totalBudget = data.categories.reduce((s, c) => s + c.budget, 0);
   const cSpend = {};
   txs.forEach(t => { cSpend[t.categoryId] = (cSpend[t.categoryId] || 0) + t.amount; });
@@ -2568,7 +2573,7 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Savings Rate — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={trendData.map(d => {
-            const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
+            const income = (d.depositIncome || 0) > 0 ? d.depositIncome : getMonthlyIncome(data.incomes);
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
@@ -2577,7 +2582,7 @@ function TrendsTab({ data, month }) {
             <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
-                const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
+                const income = (d.depositIncome || 0) > 0 ? d.depositIncome : getMonthlyIncome(data.incomes);
                 const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
                 return <Cell key={i} fill={rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red} />;
               })}
