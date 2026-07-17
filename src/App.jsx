@@ -741,22 +741,6 @@ export default function BudgetManager() {
     try { await storageBackend.set(STORAGE_KEY, JSON.stringify(finalData)); } catch(e) { console.error(e); }
   }, []);
 
-  // Auto-generate recurring transactions on load
-  const generateRecurring = useCallback((d) => {
-    if (!d.recurring || d.recurring.length === 0) return d;
-    const now = curMonth();
-    const existing = new Set(d.transactions.filter(t => t.fromRecurring).map(t => `${t.fromRecurring}-${monthKey(t.date)}`));
-    const newTxs = [];
-    d.recurring.forEach(r => {
-      const key = `${r.id}-${now}`;
-      if (!existing.has(key)) {
-        const cat = d.categories.find(c => c.id === r.categoryId);
-        newTxs.push({ id: uid(), date: `${now}-01`, amount: r.amount, categoryId: r.categoryId, categoryName: cat?.name || r.categoryId, description: r.name, fromRecurring: r.id });
-      }
-    });
-    if (newTxs.length === 0) return d;
-    return { ...d, transactions: [...d.transactions, ...newTxs] };
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -780,16 +764,20 @@ export default function BudgetManager() {
           const userRules = parsed.rules.filter(rule => !defaultRuleIds.has(rule.id));
           parsed.rules = [...updatedDefaultRules, ...userRules];
 
-          const withRecurring = generateRecurring(parsed);
-          setData(withRecurring);
-          if (withRecurring !== parsed) {
-            await storageBackend.set(STORAGE_KEY, JSON.stringify(withRecurring));
+          // Recurring bills no longer auto-create transactions (they double-counted
+          // with CSV-imported real payments). Purge any previously auto-generated ones.
+          const hadSynthetic = parsed.transactions.some(t => t.fromRecurring);
+          if (hadSynthetic) parsed.transactions = parsed.transactions.filter(t => !t.fromRecurring);
+
+          setData(parsed);
+          if (hadSynthetic) {
+            await storageBackend.set(STORAGE_KEY, JSON.stringify(parsed));
           }
         } else { setData(getDefaultState()); }
       } catch { setData(getDefaultState()); }
       setLoading(false);
     })();
-  }, [generateRecurring]);
+  }, []);
 
   const shiftMonth = (d) => setMonth(shiftMonthStr(month, d));
 
@@ -1827,7 +1815,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#AEBEDA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
+            <div style={{ fontSize: 12, color: "#AEBEDA", marginBottom: 10 }}>Recurring bills power the bill calendar, Safe-to-Spend, and the 30-day forecast. They are never logged as transactions — your CSV import brings the real payments.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
