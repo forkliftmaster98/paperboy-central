@@ -80,10 +80,10 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const DEFAULT_RULES = [
-  { id: "r1", keywords: "rent,mortgage,landlord", categoryId: "rent" },
+  { id: "r1", keywords: "rent,mortgage,landlord,venmo", categoryId: "rent" },
   { id: "r2", keywords: "electric,gas bill,water,eversource,ngrid,national grid,unitil", categoryId: "utilities" },
   // r3: subscriptions only — DashPass specifically, NOT generic doordash (those are dining)
-  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock,kindle", categoryId: "subscriptions" },
+  { id: "r3", keywords: "netflix,spotify,hlu*huluplus,hulu,disney,amazon prime,apple.com/bill,youtube,crunchyroll,twitch,discord,prime video,doordashdashpass,grubhub,peacock,kindle,ultimate guitar", categoryId: "subscriptions" },
   { id: "r4", keywords: "chipotle,mcdonald,dunkin,starbucks,pizza,burger,taco bell,taco,subway,wendy,restaurant,cafe,diner,chick-fil-a,wingstop,sushi,fancy bagels,bagel cafe,jgilbert,wong wok,longboard bur,haya,raising canes,dairy cream,primo hoagies,jersey mikes,jersey mike,bensons bagels,crumbl,mochi,doordash,dd *doordash,allhungry,bear smokehouse,bear s sm,scibellis,scibelli,aroma joe,mocha joe,lox stock,bagels,cinepolis,five guys,paris baguette,great wall,dominos,little caesars,buffalo wild,tst*,tst *,summer house,congamond coffee,deep root,ellies farmhouse,millwright,rooftop,suffield villa", categoryId: "dining" },
   { id: "r5", keywords: "stop shop,stop & shop,shaws,market,whole foods,aldi,walmart,wal-mart,hannaford,trader joe,price chopper,big y,ocean state,tractor supply,ondrick natural earth,calabrese farms", categoryId: "groceries" },
   { id: "r6", keywords: "shell,sunoco,mobil,bp,citgo,exxon,gulf,cumberland,irving,gas station,pride station,pride spfld,pilot,global montell,jiffy mart", categoryId: "gas" },
@@ -91,17 +91,17 @@ const DEFAULT_RULES = [
   { id: "r8", keywords: "travelers,geico,progressive,allstate,state farm,per insur,allianz", categoryId: "insurance" },
   { id: "r9", keywords: "crossover fitness,best abc,best fitness,planet fitness,gym,ymca,anytime fitness,crunch fitness,stubhub,ticketmaster,tm *hey,wyckoff country", categoryId: "leisure" },
   // r10: transfers — credit card payments, savings transfers, peer-to-peer
-  { id: "r10", keywords: "capital one,venmo,mobile pmt,loan payment,car payment,apple cash", categoryId: "transfers" },
+  { id: "r10", keywords: "capital one,mobile pmt,loan payment,car payment,apple cash", categoryId: "transfers" },
   { id: "r11", keywords: "grape ape,vape,tobacco,cigarette,smoking ape,revitin", categoryId: "personal" },
   { id: "r12", keywords: "car wash,washville,auto wash", categoryId: "personal" },
   { id: "r13", keywords: "otis ridge,ski area,ski resort,lift ticket,bousquet,berkshire east,colorado ski,mt snow,fabian mt,killington,pico r,mass mutual center,ski", categoryId: "leisure" },
   // r14: ATM and cash withdrawals
   { id: "r14", keywords: "pioneer vtc,memorial ft in,atm,withdrwl,withdrawal", categoryId: "cash" },
-  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline,excel tire,e-z*pass,ezpass,ez pass,violations,parking,meter park", categoryId: "auto" },
+  { id: "r15", keywords: "o'reilly,autozone,napa auto,advance auto,pep boys,jiffy lube,valvoline,excel tire,e-z*pass,e-zpass,ezpass,ez pass,violations,parking,meter park", categoryId: "auto" },
   { id: "r16", keywords: "b d mart,bd mart,convenience,corner store,7-eleven,cumberland farms,sunnys convenience", categoryId: "groceries" },
   { id: "r17", keywords: "fine fettle,dispensary,cannabis,weed", categoryId: "personal" },
   { id: "r18", keywords: "sp the cutting edge,hair,salon,barber,spa,nail", categoryId: "personal" },
-  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store,microsoft*stor,riot*,riot games", categoryId: "video_games" },
+  { id: "r19", keywords: "steamgames,wl *steam,wl steam,steam purchase,nintendo,fortnite,epc*fortnite,blizzard,packdraw,microsoft*real,microsoft*store,microsoft*stor,riot*,riot games,csfloat", categoryId: "video_games" },
   { id: "r20", keywords: "labcorp,urgent care,hospital,clinic,dentist,walgreens,cvs,rite aid", categoryId: "medical" },
   { id: "r21", keywords: "vca animal,petco,petsmart,pet supplies,animal hospital", categoryId: "pet" },
   { id: "r22", keywords: "kelley & ryan,excise tax,tax collector,tax payment,dmv,southwick, town,town of southwick,e-z*pass mta,violations mta", categoryId: "taxes" },
@@ -496,11 +496,11 @@ function buildForecast(data, days = 30) {
 // ── Design tokens ─────────────────────────────────────────
 // Deep blue-slate foundation: dark but warm, not a black void
 const C = {
-  bg: "#0B1120",
-  surface: "#121A2C",
-  surfaceHigh: "#1B2540",
-  border: "#243050",
-  borderGlow: "#33426B",
+  bg: "#111A2E",
+  surface: "#1A2440",
+  surfaceHigh: "#263455",
+  border: "#32436B",
+  borderGlow: "#45588A",
   green: "#2ECC71",
   greenDim: "#14532D",
   gold: "#E3B341",
@@ -510,9 +510,9 @@ const C = {
   red: "#EF4444",
   redDim: "#7F1D1D",
   amber: "#F59E0B",
-  text: "#EDF2FA",
-  textMid: "#9AABC7",
-  textDim: "#64748F",
+  text: "#F4F7FC",
+  textMid: "#AEBEDA",
+  textDim: "#8092B0",
 };
 
 // ── Styles ────────────────────────────────────────────────
@@ -528,8 +528,8 @@ const S = {
   navItem: (a) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "9px 0 10px", margin: "5px 4px", cursor: "pointer", background: a ? C.greenDim + "3A" : "none", border: "none", borderRadius: 12, color: a ? C.green : C.textDim, fontFamily: "inherit", gap: 3, transition: "color 0.18s, background 0.18s" }),
   navLabel: (a) => ({ fontSize: 10, fontWeight: a ? 600 : 400, letterSpacing: "0.02em" }),
   page: { padding: "12px 16px 0" },
-  card: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 16, padding: "16px 18px", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
-  cardFlush: { background: `linear-gradient(180deg, #16203A 0%, ${C.surface} 100%)`, borderRadius: 16, overflow: "hidden", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  card: { background: `linear-gradient(180deg, #202C4C 0%, ${C.surface} 100%)`, borderRadius: 16, padding: "16px 18px", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
+  cardFlush: { background: `linear-gradient(180deg, #202C4C 0%, ${C.surface} 100%)`, borderRadius: 16, overflow: "hidden", marginBottom: 12, border: "1px solid " + C.border, boxShadow: "0 2px 10px rgba(0,0,0,0.28)", transition: "border-color 0.2s ease, box-shadow 0.2s ease" },
   cTitle: { fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: C.textDim, marginBottom: 10 },
   row: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" },
   inp: { background: C.surfaceHigh, border: "1px solid " + C.border, borderRadius: 10, padding: "11px 13px", color: C.text, fontSize: 15, fontFamily: "inherit", flex: 1, minWidth: 80 },
@@ -593,10 +593,10 @@ const GLOBAL_CSS = `
 .page-anim > div > *:nth-child(7) { animation-delay: 180ms; }
 .page-anim > div > *:nth-child(n+8) { animation-delay: 210ms; }
 .anim-bar { animation: barGrow 0.55s ease both; }
-* { scrollbar-width: thin; scrollbar-color: #33426B #121A2C; }
+* { scrollbar-width: thin; scrollbar-color: #45588A #1A2440; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-track { background: #121A2C; border-radius: 8px; }
-*::-webkit-scrollbar-thumb { background: #33426B; border-radius: 8px; border: 2px solid #121A2C; }
+*::-webkit-scrollbar-track { background: #1A2440; border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: #45588A; border-radius: 8px; border: 2px solid #1A2440; }
 *::-webkit-scrollbar-thumb:hover { background: #4A5C8C; }
 *::-webkit-scrollbar-corner { background: transparent; }
 @media (prefers-reduced-motion: reduce) {
@@ -605,12 +605,12 @@ const GLOBAL_CSS = `
 .pb-btn:hover { transform: scale(1.08); }
 .pb-btn:active { transform: scale(0.96); }
 .app-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
-.app-card:hover { border-color: #33426B !important; box-shadow: 0 2px 14px rgba(0,0,0,0.4); }
+.app-card:hover { border-color: #45588A !important; box-shadow: 0 2px 14px rgba(0,0,0,0.4); }
 .app-btn { transition: opacity 0.15s, transform 0.12s; }
 .app-btn:hover { opacity: 0.88; }
 .app-btn:active { transform: scale(0.97); }
 .app-btn-ghost { transition: background 0.15s, color 0.15s; }
-.app-btn-ghost:hover { background: #243050 !important; color: #C8D5E0 !important; }
+.app-btn-ghost:hover { background: #32436B !important; color: #C8D5E0 !important; }
 .nav-item { transition: color 0.18s; }
 .nav-dot { transition: opacity 0.25s, transform 0.25s; }
 .del-btn { transition: color 0.15s, transform 0.12s; }
@@ -688,7 +688,7 @@ function AchievementToast({ achievement, onDone }) {
     delay: Math.random() * 0.35,
     dur: 0.9 + Math.random() * 0.7,
     size: 4 + Math.random() * 4,
-    color: [C.gold, "#F2C14E", "#2ECC71", "#61AFEF", "#EDF2FA"][i % 5],
+    color: [C.gold, "#F2C14E", "#2ECC71", "#61AFEF", "#F4F7FC"][i % 5],
   })) : [], [gold]);
   return (
     <div style={{
@@ -806,7 +806,7 @@ export default function BudgetManager() {
     return manual + deposits;
   }, [data, monthTx]);
 
-  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#7C8CAD" }}>Loading...</p></div>;
+  if (loading || !data) return <div style={{ ...S.root, display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><p style={{ color: "#8CA0C0" }}>Loading...</p></div>;
 
   // CRUD
   const addTx = (tx) => save({ ...data, transactions: [...data.transactions, { ...tx, id: uid() }] });
@@ -1126,14 +1126,14 @@ You also know how this app works and can answer usage questions:
           <PaperBoySVG size={24} />
           <div>
             <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1 }}>PaperBoy</div>
-            <div style={{ fontSize: 10, color: "#7C8CAD" }}>Financial Advisor</div>
+            <div style={{ fontSize: 10, color: "#8CA0C0" }}>Financial Advisor</div>
           </div>
         </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: "#7C8CAD", cursor: "pointer", fontSize: 18 }}>x</button>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: "#8CA0C0", cursor: "pointer", fontSize: 18 }}>x</button>
       </div>
       <div ref={bodyRef} style={S.pbBody}>
         {messages.map((m, i) => <div key={i} style={S.pbMsg(m.role === "user")}>{m.text}</div>)}
-        {thinking && <div style={{ ...S.pbMsg(false), color: "#7C8CAD" }}>Crunching numbers...</div>}
+        {thinking && <div style={{ ...S.pbMsg(false), color: "#8CA0C0" }}>Crunching numbers...</div>}
       </div>
       {/* Quick prompts */}
       {messages.length <= 1 && !thinking && (
@@ -1192,7 +1192,7 @@ function BillCalendar({ recurring, month }) {
               borderRadius: 6,
               padding: "4px 2px",
               minHeight: 44,
-              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#151E33" : "#2A1A0E") : "transparent",
+              background: tdy ? C.greenDim : bills.length > 0 ? (past ? "#1E2946" : "#2A1A0E") : "transparent",
               border: tdy ? `1px solid ${C.green}` : bills.length > 0 ? `1px solid ${past ? C.border : C.amber}` : "1px solid transparent",
               opacity: past && !bills.length ? 0.35 : 1,
               cursor: bills.length ? "default" : "default",
@@ -1370,9 +1370,9 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
           </div>
           <ResponsiveContainer width="100%" height={140}>
             <LineChart data={forecast.points} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-              <XAxis dataKey="date" tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} interval={6} />
-              <YAxis tickFormatter={v => `$${Math.round(v)}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} width={48} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <XAxis dataKey="date" tick={{ fill: "#8CA0C0", fontSize: 9 }} axisLine={false} tickLine={false} interval={6} />
+              <YAxis tickFormatter={v => `$${Math.round(v)}`} tick={{ fill: "#8CA0C0", fontSize: 9 }} axisLine={false} tickLine={false} width={48} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
               <Line type="monotone" dataKey="balance" stroke={forecast.firstNegative ? C.red : C.green} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -1438,7 +1438,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
 
       {totalBudgeted > 0 && (
         <div style={S.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#9AABC7" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3, color: "#AEBEDA" }}>
             <span style={{ ...S.cTitle, marginBottom: 0 }}>Budget Health</span>
             <span style={{ color: (totalBudgeted - totalSpent) < 0 ? C.red : C.green }}>{fmt(totalBudgeted - totalSpent)} left of {fmt(totalBudgeted)}</span>
           </div>
@@ -1461,7 +1461,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <ResponsiveContainer width="100%" height={200}>
               <PieChart><Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2} strokeWidth={0}>
                 {pieData.map((d) => <Cell key={d.id} fill={catColor(d.id)} />)}
-              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
+              </Pie><Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} /></PieChart>
             </ResponsiveContainer>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 10 }}>
               {pieData.map((d) => <span key={d.name} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: catColor(d.id), flexShrink: 0 }} />{catIcon(d.id)} {d.name}: {fmt(d.value)}</span>)}
@@ -1473,10 +1473,10 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
             <div style={S.cTitle}>Budget vs Actual</div>
             <ResponsiveContainer width="100%" height={Math.max(200, barData.length * 26)}>
               <BarChart data={barData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
-                <Bar dataKey="budget" fill="#243050" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
+                <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#8CA0C0", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#AEBEDA", fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+                <Bar dataKey="budget" fill="#32436B" radius={[0, 2, 2, 0]} barSize={8} name="Budget" />
                 <Bar dataKey="spent" radius={[0, 2, 2, 0]} barSize={8} name="Spent">
                   {barData.map(d => <Cell key={d.id} fill={catColor(d.id)} />)}
                 </Bar>
@@ -1512,7 +1512,7 @@ function Dashboard({ data, monthTx, catSpend, totalSpent, totalBudgeted, totalIn
         <div style={S.cTitle}>Recent Transactions</div>
         {monthTx.length === 0 ? <div style={S.empty}>🗞 A quiet month so far. Transactions land here as you log or import them.</div> : (
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Date</th><th style={S.th}>Description</th><th style={S.th}>Category</th><th style={{ ...S.th, textAlign: "right" }}>Amount</th></tr></thead><tbody>
-            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD", whiteSpace: "nowrap" }}>{t.date.slice(5)}</td><td style={S.td} title={t.description}>{cleanMerchant(t.description)}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId), whiteSpace: "nowrap" }}>{t.type === "income" ? "💰" : catIcon(t.categoryId)} {t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td></tr>)}
+            {monthTx.slice(0, 8).map(t => <tr key={t.id}><td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#8CA0C0", whiteSpace: "nowrap" }}>{t.date.slice(5)}</td><td style={S.td} title={t.description}>{cleanMerchant(t.description)}{t.fromRecurring && <span style={{ ...S.underB, marginLeft: 4 }}>auto</span>}</td><td style={{ ...S.td, color: t.type === "income" ? C.green : catColor(t.categoryId), whiteSpace: "nowrap" }}>{t.type === "income" ? "💰" : catIcon(t.categoryId)} {t.categoryName}</td><td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: t.type === "income" ? C.green : undefined }}>{t.type === "income" ? "+" : ""}{fmt(t.amount)}</td></tr>)}
           </tbody></table></div>
         )}
       </div>
@@ -1823,7 +1823,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
 
         {recurringMode && (
           <div>
-            <div style={{ fontSize: 12, color: "#9AABC7", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
+            <div style={{ fontSize: 12, color: "#AEBEDA", marginBottom: 10 }}>Recurring bills auto-generate on the 1st of each month. Add a due day to get alerts on the dashboard.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 14 }}>
               <input style={S.inp} placeholder="Name (e.g. Rent)" value={recName} onChange={e => setRecName(e.target.value)} />
               <input type="number" style={S.inpSm} placeholder="$" value={recAmt} onChange={e => setRecAmt(e.target.value)} min="0" />
@@ -1835,7 +1835,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
             </div>
             {(data.recurring || []).length === 0 ? <div style={S.empty}>📅 Add your bills here (rent, insurance, subscriptions) and PaperBoy tracks due dates for you.</div> : (
               <table style={S.tbl}><thead><tr><th style={S.th}>Name</th><th style={S.th}>Amount</th><th style={S.th}>Due</th><th style={S.th}>Category</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
+                {(data.recurring || []).map(r => <tr key={r.id}><td style={S.td}>{r.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(r.amount)}/mo</td><td style={{ ...S.td, color: "#8CA0C0" }}>{r.dueDay ? `${r.dueDay}th` : "—"}</td><td style={{ ...S.td, color: "#8CA0C0" }}>{r.categoryName}</td><td style={S.td}><button style={S.delBtn} onClick={() => delRecurring(r.id)}>x</button></td></tr>)}
               </tbody></table>
             )}
           </div>
@@ -1848,9 +1848,9 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                 <input ref={fileRef} type="file" accept=".csv,.tsv,.txt" style={{ display: "none" }} onChange={e => e.target.files[0] && handleCSV(e.target.files[0])} />
                 <div onClick={() => fileRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#C9A227"; }}
-                  onDragLeave={e => { e.currentTarget.style.borderColor = "#33426B"; }}
-                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#33426B"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
-                  style={{ border: "2px dashed #33426B", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#7C8CAD", fontSize: 13 }}>
+                  onDragLeave={e => { e.currentTarget.style.borderColor = "#45588A"; }}
+                  onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = "#45588A"; const f = e.dataTransfer.files[0]; if (f) handleCSV(f); }}
+                  style={{ border: "2px dashed #45588A", borderRadius: 6, padding: "30px 20px", textAlign: "center", cursor: "pointer", color: "#8CA0C0", fontSize: 13 }}>
                   Drop CSV here or click to browse<br/><span style={{ fontSize: 11, color: "#5A6A8C" }}>Bank: Account &gt; Activity &gt; Download/Export</span>
                 </div>
               </div>
@@ -1859,7 +1859,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                 <div style={{ ...S.row, gap: 8, marginBottom: 10 }}>
                   {["date", "amount", "desc"].map(field => (
                     <div key={field} style={{ flex: 1 }}>
-                      <label style={{ fontSize: 10, color: "#7C8CAD", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
+                      <label style={{ fontSize: 10, color: "#8CA0C0", display: "block", marginBottom: 3 }}>{field === "desc" ? "DESCRIPTION" : field.toUpperCase()} COLUMN</label>
                       <select style={{ ...S.sel, width: "100%" }} value={csvMap[field]} onChange={e => {
                         const newMap = { ...csvMap, [field]: e.target.value };
                         setCsvMap(newMap);
@@ -1878,7 +1878,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: "#7C8CAD", marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: "#8CA0C0", marginBottom: 6 }}>
                   {csvRows.length} expenses — {csvRows.filter(r => r._matched).length} auto-categorized.
                 </div>
                 {csvDepositRows.length > 0 && (
@@ -1905,7 +1905,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                           const isRefund = dtype === "refund";
                           return (
                             <tr key={row._depositId} style={{ opacity: (isBounce || isRefund) ? 0.5 : 1 }}>
-                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date]}</td>
+                              <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11, color: "#8CA0C0" }}>{row[csvMap.date]}</td>
                               <td style={{ ...S.td, fontSize: 11 }}>{row[csvMap.desc]}{row._dup && <span style={{ ...S.underB, marginLeft: 4 }}>already imported</span>}</td>
                               <td style={{ ...S.td, textAlign: "right", fontFamily: "monospace", color: C.green }}>+{fmt(Math.abs(parseFloat(String(row[csvMap.amount] || "").replace(/[^0-9.-]/g, ""))))}</td>
                               <td style={S.td}>
@@ -1959,7 +1959,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                           <input type="checkbox" checked={!row._excluded} title="Uncheck to exclude this row from import"
                             onChange={e => { const checked = e.target.checked; setCsvRows(prev => prev.map(r => r._rowId === row._rowId ? { ...r, _excluded: !checked } : r)); }} />
                         </td>
-                        <td style={{ ...S.td, fontSize: 11, color: "#7C8CAD" }}>{row[csvMap.date] || "?"}</td>
+                        <td style={{ ...S.td, fontSize: 11, color: "#8CA0C0" }}>{row[csvMap.date] || "?"}</td>
                         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 11 }}>{row[csvMap.amount] || "?"}</td>
                         <td style={{ ...S.td, fontSize: 11 }}>
                           {csvMap.desc ? row[csvMap.desc] || "" : ""}
@@ -1981,7 +1981,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                       </tr>
                     ))}
                   </tbody></table>
-                  {!csvFilter && csvRows.length > 20 && <div style={{ fontSize: 11, color: "#7C8CAD", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows below (all included unless you filter and exclude them here) — type in the filter box above to find and review specific ones</div>}
+                  {!csvFilter && csvRows.length > 20 && <div style={{ fontSize: 11, color: "#8CA0C0", padding: "6px 8px" }}>+ {csvRows.length - 20} more rows below (all included unless you filter and exclude them here) — type in the filter box above to find and review specific ones</div>}
                 </div>
                 <div style={{ ...S.row, gap: 8, marginTop: 12 }}>
                   <button style={S.btn} onClick={importCSV}>Import {csvRows.filter(r => !r._excluded).length + csvDepositRows.filter(r => ["income","extra"].includes(depositTypes[r._depositId])).length} Transactions</button>
@@ -2009,7 +2009,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
       <div style={S.card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={S.cTitle}>Transactions ({filtered.length})</div>
-          <span style={{ fontSize: 12, color: "#7C8CAD", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
+          <span style={{ fontSize: 12, color: "#8CA0C0", fontFamily: "monospace" }}>Spent: {fmt(filtered.filter(t => t.type !== "income").reduce((s, t) => s + t.amount, 0))}{filtered.some(t => t.type === "income") && <span style={{ color: C.green, marginLeft: 8 }}>Deposits: +{fmt(filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0))}</span>}</span>
         </div>
         {filtered.length === 0 ? <div style={S.empty}>🗞 Nothing here yet. Import your bank CSV above, or log a purchase — it takes five seconds.</div> : (
           <div>
@@ -2036,7 +2036,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                       </select>
                     ) : (
                       <span
-                        style={{ fontSize: 11, color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #3A4A70" : "none" }}
+                        style={{ fontSize: 11, color: t.type === "income" ? C.green : catColor(t.categoryId), cursor: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "pointer" : "default", borderBottom: (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? "1px dashed #4A5E8E" : "none" }}
                         title={(!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") ? `${t.categoryName} — tap to change` : t.categoryName}
                         onClick={() => { if (!t.isDebtPayment && !t.isSavingsDeposit && t.type !== "income") setEditCatId(t.id); }}>
                         {t.type === "income" ? "💰" : catIcon(t.categoryId)} {t.categoryName}
@@ -2058,7 +2058,7 @@ function Transactions({ data, monthTx, addTx, addTxBatch, delTx, updTxCat, updTx
                     onBlur={() => { const v = parseFloat(editAmtVal); if (v > 0 && v !== t.amount) updTxAmt(t.id, v); setEditAmtId(null); }} />
                 ) : (
                   <span
-                    style={{ fontFamily: "monospace", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, color: t.type === "income" ? C.green : C.text, cursor: "pointer", borderBottom: "1px dashed #3A4A70" }}
+                    style={{ fontFamily: "monospace", fontSize: 13, whiteSpace: "nowrap", flexShrink: 0, color: t.type === "income" ? C.green : C.text, cursor: "pointer", borderBottom: "1px dashed #4A5E8E" }}
                     title="Tap to edit amount"
                     onClick={() => { setEditAmtId(t.id); setEditAmtVal(String(t.amount)); }}>
                     {t.type === "income" ? "+" : ""}{fmt(t.amount)}
@@ -2119,8 +2119,8 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {data.incomes.length === 0 ? <div style={S.empty}>💵 Start here: add your paycheck so every other number has something to measure against.</div> : (
           <table style={S.tbl}><thead><tr><th style={S.th}>Source</th><th style={S.th}>Amount</th><th style={S.th}>Freq</th><th style={S.th}>Monthly Est.</th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#7C8CAD" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
-            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #243050" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #243050" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
+            {data.incomes.map(i => { const mo = i.frequency === "weekly" ? i.amount * 4.33 : i.frequency === "biweekly" ? i.amount * 2.17 : i.amount; return <tr key={i.id}><td style={S.td}>{i.name}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(i.amount)}</td><td style={{ ...S.td, color: "#8CA0C0" }}>{i.frequency}</td><td style={{ ...S.td, fontFamily: "monospace" }}>{fmt(mo)}</td><td style={S.td}><button style={S.delBtn} onClick={() => delInc(i.id)}>x</button></td></tr>; })}
+            <tr><td colSpan={3} style={{ ...S.td, fontWeight: 600, borderTop: "1px solid #32436B" }}>Total Monthly</td><td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, borderTop: "1px solid #32436B" }}>{fmt(totalIncome)}</td><td style={S.td}></td></tr>
           </tbody></table>
         )}
       </div>
@@ -2205,7 +2205,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         </div>
         {showRules && (
           <div>
-            <div style={{ fontSize: 12, color: "#7C8CAD", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
+            <div style={{ fontSize: 12, color: "#8CA0C0", marginBottom: 10 }}>When a transaction description contains these keywords, it auto-assigns to that category on import and manual entry.</div>
             <div style={{ ...S.row, gap: 6, marginBottom: 12 }}>
               <input style={S.inp} placeholder="Keywords (comma-separated)" value={ruleKw} onChange={e => setRuleKw(e.target.value)} />
               <select style={S.sel} value={ruleCat} onChange={e => setRuleCat(e.target.value)}>
@@ -2329,9 +2329,9 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             <div key={g.id} style={{ padding: "12px 0", borderBottom: "1px solid #222" }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                 <span style={{ fontWeight: 500 }}>{g.name}{completed && <span style={{ marginLeft: 6, background: C.green, color: "#000", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99 }}>FUNDED</span>}</span>
-                <span style={{ fontSize: 11, color: "#7C8CAD" }}>{g.targetDate || "No deadline"}</span>
+                <span style={{ fontSize: 11, color: "#8CA0C0" }}>{g.targetDate || "No deadline"}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9AABC7", margin: "3px 0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#AEBEDA", margin: "3px 0" }}>
                 <span>{fmt(g.saved)} / {fmt(g.target)}</span>
                 <span style={{ color: completed ? C.green : undefined }}>{p}%</span>
               </div>
@@ -2408,9 +2408,9 @@ function GoalsTab({ data, addSav, updSav, delSav, depositSav, addDbt, updDbt, de
             </tbody></table></div>
             {simId && (
               <div style={{ ...S.row, gap: 8, marginTop: 10, padding: "10px 14px", background: "#111", borderRadius: 3 }}>
-                <span style={{ fontSize: 12, color: "#9AABC7" }}>Extra payment/mo:</span>
+                <span style={{ fontSize: 12, color: "#AEBEDA" }}>Extra payment/mo:</span>
                 <input type="number" style={{ ...S.inpSm, width: 90 }} placeholder="$ extra" value={simExtra} onChange={e => setSimExtra(e.target.value)} min="0" />
-                <span style={{ fontSize: 11, color: "#7C8CAD" }}>See payoff time update above in the sim column row</span>
+                <span style={{ fontSize: 11, color: "#8CA0C0" }}>See payoff time update above in the sim column row</span>
               </div>
             )}
           </div>
@@ -2572,9 +2572,9 @@ function TrendsTab({ data, month }) {
             const rate = income > 0 ? Math.max(0, Math.round(((income - d.total) / income) * 100)) : 0;
             return { month: d.month, rate, fill: rate >= 20 ? C.green : rate >= 10 ? C.amber : C.red };
           })} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
-            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `${v}%`} tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} domain={[0, 100]} />
+            <Tooltip formatter={v => `${v}%`} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="rate" name="Saved %" radius={[2, 2, 0, 0]}>
               {trendData.map((d, i) => {
                 const income = getMonthlyIncome(data.incomes) + (d.depositIncome || 0);
@@ -2591,9 +2591,9 @@ function TrendsTab({ data, month }) {
         <div style={S.cTitle}>Total Spending — Last 6 Months</div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-            <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+            <XAxis dataKey="month" tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
             <Bar dataKey="total" fill="#C9A227" radius={[2, 2, 0, 0]} name="Total Spent" />
           </BarChart>
         </ResponsiveContainer>
@@ -2606,28 +2606,28 @@ function TrendsTab({ data, month }) {
           <select style={S.sel} value={compareA} onChange={e => setCompareA(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
-          <span style={{ color: "#7C8CAD", fontSize: 13, padding: "0 4px" }}>vs</span>
+          <span style={{ color: "#8CA0C0", fontSize: 13, padding: "0 4px" }}>vs</span>
           <select style={S.sel} value={compareB} onChange={e => setCompareB(e.target.value)}>
             {months.map(m => <option key={m} value={m}>{monthLabelLong(m)}</option>)}
           </select>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ ...S.statV, color: "#9AABC7", fontSize: 20 }}>{fmt(spendA.total)}</div>
-            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareA)}</div>
+            <div style={{ ...S.statV, color: "#AEBEDA", fontSize: 20 }}>{fmt(spendA.total)}</div>
+            <div style={{ fontSize: 11, color: "#8CA0C0" }}>{monthLabelLong(compareA)}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ ...S.statV, color: spendB.total > spendA.total ? C.red : C.green, fontSize: 20 }}>{fmt(spendB.total)}</div>
-            <div style={{ fontSize: 11, color: "#7C8CAD" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
+            <div style={{ fontSize: 11, color: "#8CA0C0" }}>{monthLabelLong(compareB)} {spendB.total !== spendA.total && <span>({spendB.total > spendA.total ? "+" : ""}{fmt(spendB.total - spendA.total)})</span>}</div>
           </div>
         </div>
         {compData.length > 0 && (
           <ResponsiveContainer width="100%" height={Math.max(220, compData.length * 26)}>
             <BarChart data={compData} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#9AABC7", fontSize: 9 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
-              <Legend wrapperStyle={{ fontSize: 10, color: "#7C8CAD" }} />
+              <XAxis type="number" tickFormatter={v => `$${v}`} tick={{ fill: "#8CA0C0", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={100} tick={{ fill: "#AEBEDA", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <Legend wrapperStyle={{ fontSize: 10, color: "#8CA0C0" }} />
               <Bar dataKey={monthLabel(compareA)} fill="#5A6A8C" radius={[0, 2, 2, 0]} barSize={8} />
               <Bar dataKey={monthLabel(compareB)} fill="#C9A227" radius={[0, 2, 2, 0]} barSize={8} />
             </BarChart>
@@ -2641,9 +2641,9 @@ function TrendsTab({ data, month }) {
           <div style={S.cTitle}>Category Trends</div>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={trendData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
-              <XAxis dataKey="month" tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#7C8CAD", fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#1B2540", border: "1px solid #243050", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={v => `$${v}`} tick={{ fill: "#8CA0C0", fontSize: 10 }} axisLine={false} tickLine={false} />
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: "#263455", border: "1px solid #32436B", borderRadius: 3, color: "#C8D5E8", fontSize: 11 }} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               {catTrendData.map((c, i) => (
                 <Line key={c.name} type="monotone" dataKey={c.name} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
