@@ -2094,10 +2094,10 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
   const handleAddCat = () => { if (!catName.trim()) return; addCat({ name: catName.trim(), type: catType, budget: 0 }); setCatName(""); };
   const handleAddRule = () => { if (!ruleKw.trim()) return; addRule({ keywords: ruleKw.trim(), categoryId: ruleCat }); setRuleKw(""); };
 
-  const CatRow = ({ c }) => {
+  const CatRow = (c) => {
     const sp = catSpend[c.id] || 0; const over = c.budget > 0 && sp > c.budget;
     return (
-      <tr>
+      <tr key={c.id}>
         <td style={S.td}><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ fontSize: 14 }}>{catIcon(c.id)}</span><span style={{ width: 6, height: 6, borderRadius: "50%", background: catColor(c.id), flexShrink: 0 }} />{c.name}</span></td>
         <td style={S.td}><input type="number" style={{ ...S.inpSm, width: 80, padding: "3px 6px", fontSize: 12 }} value={c.budget || ""} onChange={e => updCat(c.id, { budget: parseFloat(e.target.value) || 0 })} placeholder="0" min="0" /></td>
         <td style={{ ...S.td, fontFamily: "monospace", fontSize: 12 }}>{fmt(sp)}{over && <span style={S.overB}>+{fmt(sp - c.budget)}</span>}{c.budget > 0 && !over && sp > 0 && <span style={S.underB}>{fmt(c.budget - sp)} left</span>}</td>
@@ -2183,7 +2183,7 @@ function BudgetTab({ data, catSpend, totalIncome, addInc, delInc, updCat, addCat
         <div key={type} style={S.card}>
           <div style={S.cTitle}>{type === "fixed" ? "Fixed Expenses (Bills)" : "Variable Expenses"}</div>
           <div style={{ overflowX: "auto" }}><table style={S.tbl}><thead><tr><th style={S.th}>Category</th><th style={S.th}>Budget</th><th style={S.th}>Spent</th><th style={{ ...S.th, width: 70 }}></th><th style={{ ...S.th, width: 24 }}></th></tr></thead><tbody>
-            {data.categories.filter(c => c.type === type).map(c => <CatRow key={c.id} c={c} />)}
+            {data.categories.filter(c => c.type === type).map(c => CatRow(c))}
           </tbody></table></div>
         </div>
       ))}
